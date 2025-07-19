@@ -1,0 +1,49 @@
+# ===== ARCHIVOS SENSIBLES =====
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+facturacion/.env
+
+# ===== CERTIFICADOS (BACKEND) =====
+*.p12
+*.pem
+*.key
+*.crt
+*.pfx
+facturacion/certs/
+facturacion/certificados/
+certs/
+certificados/
+
+# ===== ARCHIVOS TEMPORALES (BACKEND) =====
+facturacion/temp/
+facturacion/logs/
+facturacion/vendor/
+facturacion/composer.lock
+
+# ===== FRONTEND =====
+node_modules/
+dist/
+build/
+.vite/
+.next/
+out/
+
+# ===== LOGS =====
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== SISTEMA =====
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.sublime-*

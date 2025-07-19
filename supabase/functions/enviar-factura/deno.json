@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "npm:@xmldom/xmldom": "https://esm.sh/@xmldom/xmldom@0.8.10"
+  }
+}
