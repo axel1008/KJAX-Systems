@@ -20,4 +20,5 @@ export interface InventoryItem {
   proveedor: string | null;     
 
   status: boolean;
+  cabys_code?: string;
 }

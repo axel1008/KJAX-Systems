@@ -1,10 +1,9 @@
-// RUTA: supabase/functions/enviar-factura/index.ts (Vuelve a poner este código)
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { corsHeaders } from '../_shared/cors.ts'
-import { generarFacturaXML } from './generarXML.ts'
-import { firmarXML } from './firmarXML.ts'
-import { enviarFacturaHacienda } from './hacienda.ts'
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,46 +11,45 @@ serve(async (req) => {
   }
 
   try {
-    const invoiceData = await req.json();
+    const facturaData = await req.json()
+    console.log('📤 Datos recibidos:', facturaData.factura?.id)
 
-    if (typeof invoiceData.detalle === 'string') {
-      try {
-        invoiceData.detalle = JSON.parse(invoiceData.detalle);
-      } catch (e) {
-        throw new Error('El formato del detalle de la factura es inválido.');
-      }
+    // CORREGIR LA URL: cambiar de factura/firmar a firmar.php
+    const response = await fetch('http://localhost:8080/api/firmar.php', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(facturaData)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Backend error: ${response.status} - ${errorText}`)
     }
 
-    console.log("1. Iniciando generación de XML...");
-    const { xml: xmlSinFirmar, clave } = generarFacturaXML(invoiceData);
-    console.log(`XML generado para clave: ${clave}`);
-    
-    console.log("2. Iniciando firma de XML...");
-    const xmlFirmado = firmarXML(xmlSinFirmar);
-    console.log("XML firmado correctamente.");
+    const result = await response.json()
+    console.log('✅ Respuesta exitosa:', result)
 
-    console.log("3. Enviando factura a Hacienda...");
-    const respuestaHacienda = await enviarFacturaHacienda(xmlFirmado, clave, invoiceData.emisor);
-    console.log("Respuesta de Hacienda recibida:", respuestaHacienda);
-
-    if (respuestaHacienda.status === 202) {
-      return new Response(
-        JSON.stringify({ 
-            success: true, 
-            message: 'Factura enviada y aceptada para procesamiento por Hacienda.',
-            clave: clave,
-            status: respuestaHacienda.status,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      )
-    } else {
-      throw new Error(`Hacienda rechazó la factura (status ${respuestaHacienda.status}): ${respuestaHacienda.errorCause || 'Sin detalles adicionales'}`);
-    }
-  } catch (error) {
-    console.error('Error en el flujo de facturación (Edge Function):', error);
     return new Response(
-      JSON.stringify({ success: false, message: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify(result),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+
+  } catch (error) {
+    console.error('❌ Error:', error.message)
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     )
   }
 })

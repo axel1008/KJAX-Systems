@@ -1,11 +1,13 @@
-
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../supabaseClient";
+import { Search, CheckCircle, AlertCircle } from 'lucide-react';
 import {
   Button,
   Input,
   Select,
   SelectItem,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 
 type HeroUISelection = Set<React.Key> | "all";
@@ -30,6 +32,12 @@ interface SelectableItem {
   label: string;
 }
 
+interface CodigoCABYS {
+  codigo: string;
+  descripcion: string;
+  impuesto_iva: boolean;
+}
+
 export default function CreateInventoryItem({
   onClose,
   onCreated,
@@ -44,6 +52,14 @@ export default function CreateInventoryItem({
   const [precioVenta, setPrecioVenta] = useState<number | null>(null);
   const [unidad, setUnidad] = useState<string>("unidad");
 
+  // *** NUEVOS ESTADOS PARA CABYS ***
+  const [codigoCABYS, setCodigoCABYS] = useState<string>("");
+  const [descripcionCABYS, setDescripcionCABYS] = useState<string>("");
+  const [buscandoCABYS, setBuscandoCABYS] = useState<boolean>(false);
+  const [codigosCABYS, setCodigosCABYS] = useState<CodigoCABYS[]>([]);
+  const [codigoVerificado, setCodigoVerificado] = useState<boolean>(false);
+  const [errorCABYS, setErrorCABYS] = useState<string>("");
+
   const [categoriasDisponibles, setCategoriasDisponibles] = useState<CategoriaSupabase[]>([]);
   const [loadingCategorias, setLoadingCategorias] = useState<boolean>(false);
 
@@ -53,6 +69,149 @@ export default function CreateInventoryItem({
 
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // *** FUNCIÓN PARA BUSCAR CÓDIGOS CABYS MEJORADA ***
+  const buscarCodigosCABYS = async (termino: string) => {
+    if (termino.length < 3) {
+      setCodigosCABYS([]);
+      return;
+    }
+
+    setBuscandoCABYS(true);
+    setErrorCABYS("");
+
+    try {
+      // Limpiar y preparar término de búsqueda
+      const terminoLimpio = termino.toLowerCase().trim();
+      
+      // Si parece un código (solo números), buscar por código
+      if (/^\d+$/.test(terminoLimpio)) {
+        const { data, error } = await supabase
+          .from("cabys_codes")
+          .select("codigo, descripcion, impuesto_iva")
+          .ilike("codigo", `%${terminoLimpio}%`)
+          .order('codigo', { ascending: true })
+          .limit(15);
+
+        if (error) throw error;
+        setCodigosCABYS(data || []);
+      } else {
+        // Buscar por palabras en la descripción
+        const palabras = terminoLimpio.split(' ').filter(p => p.length > 2);
+        
+        if (palabras.length === 1) {
+          // Búsqueda simple por una palabra
+          const { data, error } = await supabase
+            .from("cabys_codes")
+            .select("codigo, descripcion, impuesto_iva")
+            .ilike("descripcion", `%${palabras[0]}%`)
+            .order('descripcion', { ascending: true })
+            .limit(15);
+
+          if (error) throw error;
+          setCodigosCABYS(data || []);
+        } else {
+          // Búsqueda por múltiples palabras
+          let query = supabase
+            .from("cabys_codes")
+            .select("codigo, descripcion, impuesto_iva");
+
+          // Crear condiciones para cada palabra
+          palabras.forEach((palabra, index) => {
+            if (index === 0) {
+              query = query.ilike("descripcion", `%${palabra}%`);
+            } else {
+              query = query.ilike("descripcion", `%${palabra}%`);
+            }
+          });
+
+          const { data, error } = await query
+            .order('descripcion', { ascending: true })
+            .limit(15);
+
+          if (error) throw error;
+          setCodigosCABYS(data || []);
+        }
+      }
+    } catch (error) {
+      console.error("Error buscando códigos CABYS:", error);
+      setErrorCABYS("Error al buscar códigos CABYS");
+      setCodigosCABYS([]);
+    } finally {
+      setBuscandoCABYS(false);
+    }
+  };
+
+  // *** VERIFICAR CÓDIGO CABYS ESPECÍFICO ***
+  const verificarCodigoCABYS = async (codigo: string) => {
+    if (!codigo || codigo.length !== 13) {
+      setCodigoVerificado(false);
+      setDescripcionCABYS("");
+      setErrorCABYS("");
+      return;
+    }
+
+    setBuscandoCABYS(true);
+    setErrorCABYS("");
+
+    try {
+      const { data, error } = await supabase
+        .from("cabys_codes")
+        .select("codigo, descripcion, impuesto_iva")
+        .eq("codigo", codigo)
+        .single();
+
+      if (error || !data) {
+        setCodigoVerificado(false);
+        setDescripcionCABYS("");
+        setErrorCABYS("Código CABYS no encontrado en la base de datos oficial");
+      } else {
+        setCodigoVerificado(true);
+        setDescripcionCABYS(data.descripcion);
+        setErrorCABYS("");
+      }
+    } catch (error) {
+      console.error("Error verificando código CABYS:", error);
+      setCodigoVerificado(false);
+      setDescripcionCABYS("");
+      setErrorCABYS("Error al verificar código CABYS");
+    } finally {
+      setBuscandoCABYS(false);
+    }
+  };
+
+  // *** MANEJAR SELECCIÓN DE CÓDIGO CABYS ***
+  const handleSeleccionarCABYS = (codigo: CodigoCABYS) => {
+    setCodigoCABYS(codigo.codigo);
+    setDescripcionCABYS(codigo.descripcion);
+    setCodigoVerificado(true);
+    setErrorCABYS("");
+    setCodigosCABYS([]);
+
+    // NO auto-llenar el nombre - el usuario pondrá su propio nombre comercial
+  };
+
+  // *** EFFECT PARA BÚSQUEDA EN TIEMPO REAL ***
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (codigoCABYS.length >= 3) {
+        if (codigoCABYS.length === 13) {
+          // Es un código completo, verificar
+          verificarCodigoCABYS(codigoCABYS);
+        } else {
+          // Buscar códigos que coincidan
+          buscarCodigosCABYS(codigoCABYS);
+        }
+      } else {
+        setCodigosCABYS([]);
+        setCodigoVerificado(false);
+        setDescripcionCABYS("");
+        setErrorCABYS("");
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [codigoCABYS]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,6 +262,11 @@ export default function CreateInventoryItem({
       setErrorMessage("Debes seleccionar una categoría.");
       return;
     }
+    // *** VALIDACIÓN CÓDIGO CABYS ***
+    if (!codigoCABYS || !codigoVerificado) {
+      setErrorMessage("Debes ingresar un código CABYS válido (obligatorio por Hacienda).");
+      return;
+    }
     if (stockInicial < 0 || stockMinimo < 0 || stockAlert < 0 || stockMaximo < 0) {
       setErrorMessage("Los valores de stock no pueden ser negativos.");
       return;
@@ -126,6 +290,7 @@ export default function CreateInventoryItem({
         precio_venta: precioVenta,
         proveedor_id: proveedorId,
         status: stockInicial > 0,
+        cabys_code: codigoCABYS, // *** AGREGAR CÓDIGO CABYS ***
       },
     ]);
 
@@ -184,16 +349,104 @@ export default function CreateInventoryItem({
         </div>
       )}
 
+      {/* *** NUEVO: CAMPO CÓDIGO CABYS *** */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-md font-semibold text-blue-800 mb-3 flex items-center">
+          <Search className="h-4 w-4 mr-2" />
+          Código CABYS (Obligatorio por Hacienda)
+        </h3>
+        
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="codigoCABYS" className="block text-sm font-medium text-gray-700 mb-1">
+              Código CABYS *
+            </label>
+            <div className="relative">
+              <Input
+                id="codigoCABYS"
+                type="text"
+                value={codigoCABYS}
+                onValueChange={setCodigoCABYS}
+                placeholder="Ej: 'pan', 'harina trigo', 'servicio consultoría', '1234567890123'"
+                className="w-full"
+                isRequired
+              />
+              {buscandoCABYS && (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                </div>
+              )}
+            </div>
+            
+            {/* Indicador de verificación */}
+            {codigoVerificado && (
+              <div className="mt-2 flex items-center text-green-600 text-sm">
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Código CABYS verificado oficialmente
+              </div>
+            )}
+            
+            {/* Error de código */}
+            {errorCABYS && (
+              <div className="mt-2 flex items-center text-yellow-600 text-sm">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {errorCABYS}
+              </div>
+            )}
+            
+            {/* Descripción del código */}
+            {descripcionCABYS && (
+              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                <strong>Descripción oficial (Hacienda):</strong> {descripcionCABYS}
+                <br />
+                <span className="text-gray-600 text-xs">
+                  Esta descripción se usará en facturas oficiales para cumplir con Hacienda
+                </span>
+              </div>
+            )}
+          </div>
+          
+          {/* Lista de sugerencias */}
+          {codigosCABYS.length > 0 && (
+            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md">
+              {codigosCABYS.map((codigo) => (
+                <div
+                  key={codigo.codigo}
+                  onClick={() => handleSeleccionarCABYS(codigo)}
+                  className="p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                >
+                  <div className="font-medium text-sm">{codigo.codigo}</div>
+                  <div className="text-xs text-gray-600 truncate">{codigo.descripcion}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <p className="text-xs text-blue-600">
+            <strong>Ejemplos de búsqueda:</strong><br/>
+            • Por palabra: "pan", "harina", "consultoría"<br/>
+            • Por categoría: "alimentos", "servicios", "tecnología"<br/>
+            • Por código completo: "1234567890123"<br/>
+            • Múltiples palabras: "harina de trigo", "servicio consultoría"
+          </p>
+        </div>
+      </div>
+
       <div>
-        <label htmlFor="nombreProducto" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto *</label>
+        <label htmlFor="nombreProducto" className="block text-sm font-medium text-gray-700 mb-1">
+          Nombre Comercial del Producto *
+        </label>
         <Input
           id="nombreProducto"
           type="text"
           value={nombre}
           onValueChange={setNombre}
-          placeholder="Ej: Pan Baguette, Harina de Trigo"
+          placeholder="Ej: Pan Artesanal Casa Blanca, Harina Premium Golden"
           isRequired
         />
+        <p className="text-xs text-gray-500 mt-1">
+          Este es el nombre que aparecerá en tu inventario y podrás usar comercialmente
+        </p>
       </div>
 
       <div>
@@ -236,13 +489,27 @@ export default function CreateInventoryItem({
       
       <div>
         <label htmlFor="unidadProducto" className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
-        <Input
-            id="unidadProducto"
-            type="text"
-            value={unidad}
-            onValueChange={setUnidad}
-            placeholder="Ej: kg, lt, unidad"
-        />
+        <Select
+          id="unidadProducto"
+          aria-label="Seleccionar unidad"
+          placeholder="Selecciona una unidad"
+          selectedKeys={unidad ? new Set([unidad]) : new Set()}
+          onSelectionChange={(keys) => {
+            const selectedKey = Array.from(keys)[0];
+            setUnidad(selectedKey ? String(selectedKey) : "unidad");
+          }}
+        >
+          <SelectItem key="unidad" textValue="Unidad">Unidad (und)</SelectItem>
+          <SelectItem key="kilogramo" textValue="Kilogramo">Kilogramo (kg)</SelectItem>
+          <SelectItem key="gramo" textValue="Gramo">Gramo (g)</SelectItem>
+          <SelectItem key="litro" textValue="Litro">Litro (lt)</SelectItem>
+          <SelectItem key="mililitro" textValue="Mililitro">Mililitro (ml)</SelectItem>
+          <SelectItem key="metro" textValue="Metro">Metro (m)</SelectItem>
+          <SelectItem key="centimetro" textValue="Centímetro">Centímetro (cm)</SelectItem>
+          <SelectItem key="caja" textValue="Caja">Caja</SelectItem>
+          <SelectItem key="paquete" textValue="Paquete">Paquete</SelectItem>
+          <SelectItem key="docena" textValue="Docena">Docena</SelectItem>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -283,7 +550,7 @@ export default function CreateInventoryItem({
           type="submit"
           color="primary"
           isLoading={loading}
-          disabled={loading}
+          disabled={loading || !codigoVerificado}
         >
           {loading ? "Creando..." : "Crear Producto"}
         </Button>

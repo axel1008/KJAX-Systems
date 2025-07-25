@@ -11,6 +11,8 @@ import {
   PackageCheck,
   PackageX,
   PackagePlus,
+  FileText,
+  Shield,
 } from "lucide-react";
 
 const formatCRC = (value: number | null): string => {
@@ -90,16 +92,40 @@ export default function ViewInventoryItem({
             {`PROD-${String(item.id).padStart(3, "0")}`}
           </DetailRow>
 
+          {/* NUEVO: Código CABYS */}
+          <DetailRow icon={<Shield size={16} />} label="Código CABYS">
+            <div className="space-y-1">
+              <div className="font-mono text-blue-600">
+                {item.cabys_code || "No asignado"}
+              </div>
+              {item.cabys_code && (
+                <div className="text-xs text-slate-500 font-normal">
+                  Código oficial para Hacienda
+                </div>
+              )}
+            </div>
+          </DetailRow>
+
           <DetailRow icon={<Shapes size={16} />} label="Categoría">
             {item.categoria ?? "N/A"}
           </DetailRow>
 
           <DetailRow icon={<Warehouse size={16} />} label="Existencias">
-            {`${item.stock} ${item.unidad || "unidades"}`}
+            <div className="space-y-1">
+              <div>{`${item.stock} ${item.unidad || "unidades"}`}</div>
+              <div className="text-xs text-slate-500 font-normal">
+                Mín: {item.stock_minimo} | Máx: {item.stock_maximo}
+              </div>
+            </div>
           </DetailRow>
 
-          <DetailRow icon={<Tag size={16} />} label="Precio de Venta">
-            {formatCRC(item.precio_venta)}
+          <DetailRow icon={<Tag size={16} />} label="Precios">
+            <div className="space-y-1">
+              <div className="text-green-600">Venta: {formatCRC(item.precio_venta)}</div>
+              <div className="text-xs text-slate-500 font-normal">
+                Compra: {formatCRC(item.precio_compra)}
+              </div>
+            </div>
           </DetailRow>
 
           <DetailRow icon={<Truck size={16} />} label="Proveedor">
@@ -110,6 +136,20 @@ export default function ViewInventoryItem({
             <StatusBadge text={statusLabel} type={statusType} />
           </DetailRow>
         </div>
+
+        {/* NUEVO: Sección de información adicional si hay código CABYS */}
+        {item.cabys_code && (
+          <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center text-blue-800 text-sm font-medium mb-2">
+              <FileText size={14} className="mr-2" />
+              Información para Facturación Electrónica
+            </div>
+            <div className="text-xs text-blue-700">
+              Este producto cuenta con código CABYS oficial y cumple con los 
+              requisitos de Hacienda para facturación electrónica.
+            </div>
+          </div>
+        )}
 
         {/* Pie del Modal */}
         <div className="mt-8 flex justify-end">

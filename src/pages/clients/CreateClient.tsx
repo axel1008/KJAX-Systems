@@ -1,12 +1,15 @@
-// src/pages/clients/CreateClient.tsx
-
 import { useState, useEffect, useRef } from "react";
+import { toast } from "react-hot-toast";
 import type { Cliente } from "./types";
+// CAMBIO: Se añade 'Button' y se elimina la importación incorrecta
+import { Select, SelectItem, Button } from "@heroui/react";
 
 interface CreateClientProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (nuevo: Omit<Cliente, "id" | "status" | "created_at" | "updated_at">) => void;
+  onCreated: (
+    nuevo: Omit<Cliente, "id" | "status" | "created_at" | "updated_at">
+  ) => void;
 }
 
 export default function CreateClient({
@@ -14,13 +17,12 @@ export default function CreateClient({
   onClose,
   onCreated,
 }: CreateClientProps) {
-  // ─── Campos básicos ─────────────────────────────────────────────────
+  // --- Campos básicos ---
   const [nombre, setNombre] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [telefono, setTelefono] = useState<string>("");
 
-  // ─── Campos “Datos Fiscales” (solo si requiere electrónica) ──────────
-  const [requiereElectronica, setRequiereElectronica] = useState<boolean>(false);
+  // --- Campos fiscales y dirección ---
   const [tipoIdentificacion, setTipoIdentificacion] = useState<string>("");
   const [identificacion, setIdentificacion] = useState<string>("");
   const [correoFacturacion, setCorreoFacturacion] = useState<string>("");
@@ -30,7 +32,7 @@ export default function CreateClient({
   const [barrio, setBarrio] = useState<string>("");
   const [direccionExacta, setDireccionExacta] = useState<string>("");
 
-  // ─── Campo “Notas Internas” ───────────────────────────────────────────
+  // --- Notas internas ---
   const [notasInternas, setNotasInternas] = useState<string>("");
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -38,11 +40,10 @@ export default function CreateClient({
 
   useEffect(() => {
     if (isOpen) {
-      // Reseteamos todo al abrir
+      // Resetear todos los campos
       setNombre("");
       setEmail("");
       setTelefono("");
-      setRequiereElectronica(false);
       setTipoIdentificacion("");
       setIdentificacion("");
       setCorreoFacturacion("");
@@ -61,56 +62,70 @@ export default function CreateClient({
     e.preventDefault();
     setErrorMsg(null);
 
-    // ─── Validaciones básicas ─────────────────────────────────────────
+    // --- Validaciones básicas ---
     if (!nombre.trim() || !email.trim() || !telefono.trim()) {
-      setErrorMsg("Nombre, Email y Teléfono son obligatorios.");
+      const msg = "Nombre, Email y Teléfono son obligatorios.";
+      setErrorMsg(msg);
+      toast.error(msg);
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setErrorMsg("Ingresa un correo electrónico válido.");
+      const msg = "Ingresa un correo electrónico válido.";
+      setErrorMsg(msg);
+      toast.error(msg);
       return;
     }
     if (!/^\d+$/.test(telefono.trim())) {
-      setErrorMsg("El teléfono debe contener solo dígitos.");
+      const msg = "El teléfono debe contener solo dígitos.";
+      setErrorMsg(msg);
+      toast.error(msg);
       return;
     }
 
-    // ─── Si requiere factura electrónica, validamos los campos fiscales ─
-    if (requiereElectronica) {
-      if (!tipoIdentificacion.trim() || !identificacion.trim()) {
-        setErrorMsg("Si requiere factura electrónica, ingresa Tipo ID e Identificación.");
-        return;
-      }
-      if (!/^\S+@\S+\.\S+$/.test(correoFacturacion.trim())) {
-        setErrorMsg("Ingresa un correo válido de facturación.");
-        return;
-      }
-      if (!provincia.trim() || !canton.trim() || !distrito.trim() || !direccionExacta.trim()) {
-        setErrorMsg("Debes completar la dirección: Provincia, Cantón, Distrito y Dirección Exacta.");
-        return;
-      }
+    // --- Validaciones fiscales (si se ingresaron) ---
+    const fiscalFieldsEntered = tipoIdentificacion || identificacion || correoFacturacion || provincia || canton || distrito || direccionExacta;
+    if (fiscalFieldsEntered) {
+        if (!tipoIdentificacion) {
+            const msg = "Selecciona un Tipo de Identificación.";
+            setErrorMsg(msg);
+            toast.error(msg);
+            return;
+        }
+        if (!identificacion.trim()) {
+            const msg = "Ingresa el número de identificación.";
+            setErrorMsg(msg);
+            toast.error(msg);
+            return;
+        }
+        if (!/^\S+@\S+\.\S+$/.test(correoFacturacion.trim())) {
+            const msg = "Ingresa un correo válido de facturación.";
+            setErrorMsg(msg);
+            toast.error(msg);
+            return;
+        }
+        if (!provincia.trim() || !canton.trim() || !distrito.trim() || !direccionExacta.trim()) {
+            const msg = "Completa Provincia, Cantón, Distrito y Dirección Exacta.";
+            setErrorMsg(msg);
+            toast.error(msg);
+            return;
+        }
     }
 
-    // ─── Construimos el objeto que manda al backend (sin “status”, “created_at”, etc.) ─
+
+    // --- Construcción del objeto para el backend ---
     const nuevoCliente = {
       nombre: nombre.trim(),
       email: email.trim(),
       telefono: telefono.trim(),
-
-      tipo_identificacion: requiereElectronica ? tipoIdentificacion.trim() : null,
-      identificacion: requiereElectronica ? identificacion.trim() : null,
-      correo_facturacion: requiereElectronica ? correoFacturacion.trim() : null,
-      provincia: requiereElectronica ? provincia.trim() : null,
-      canton: requiereElectronica ? canton.trim() : null,
-      distrito: requiereElectronica ? distrito.trim() : null,
-      barrio: requiereElectronica ? barrio.trim() : null,
-      direccion_exacta: requiereElectronica ? direccionExacta.trim() : null,
-      requiere_electronica: requiereElectronica,
-
-      limite_credito: null,         // Eliminado en esta versión
-      dias_credito: null,           // Eliminado en esta versión
-      metodo_pago_preferido: null,  // Eliminado en esta versión
-
+      tipo_identificacion: tipoIdentificacion || null,
+      identificacion: identificacion.trim() || null,
+      correo_facturacion: correoFacturacion.trim() || null,
+      provincia: provincia.trim() || null,
+      canton: canton.trim() || null,
+      distrito: distrito.trim() || null,
+      barrio: barrio.trim() || null,
+      direccion_exacta: direccionExacta.trim() || null,
+      requiere_electronica: !!fiscalFieldsEntered, // Será true si se llenó algún campo fiscal
       notas_internas: notasInternas.trim() || null,
     };
 
@@ -129,7 +144,8 @@ export default function CreateClient({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Nombre Cliente/Empresa */}
+          {/* --- DATOS BÁSICOS --- */}
+          <h3 className="text-md font-semibold border-b pb-2">Información de Contacto</h3>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nombre Cliente/Empresa *
@@ -142,157 +158,128 @@ export default function CreateClient({
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
             />
           </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email *
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-            />
-          </div>
-
-          {/* Teléfono */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Teléfono (solo dígitos) *
-            </label>
-            <input
-              type="text"
-              value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-            />
-          </div>
-
-          {/* Requiere Factura Electrónica */}
-          <div className="flex items-center space-x-2">
-            <input
-              id="requiere-electronica"
-              type="checkbox"
-              checked={requiereElectronica}
-              onChange={(e) => setRequiereElectronica(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-400 border-gray-300 rounded"
-            />
-            <label htmlFor="requiere-electronica" className="text-sm text-gray-700">
-              Requiere Factura Electrónica
-            </label>
-          </div>
-
-          {/* Si marcó “requiere electrónica”, mostramos los campos fiscales */}
-          {requiereElectronica && (
-            <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
-              <h3 className="text-md font-semibold border-b border-gray-200 pb-1 mb-2">
-                Datos Fiscales / Dirección
-              </h3>
-
-              {/* Tipo & Número Identificación */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo de Identificación *
-                  </label>
-                  <input
-                    type="text"
-                    value={tipoIdentificacion}
-                    onChange={(e) => setTipoIdentificacion(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Identificación *
-                  </label>
-                  <input
-                    type="text"
-                    value={identificacion}
-                    onChange={(e) => setIdentificacion(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Correo Facturación */}
-              <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Correo Facturación *
+                Email *
                 </label>
                 <input
-                  type="email"
-                  value={correoFacturacion}
-                  onChange={(e) => setCorreoFacturacion(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
                 />
-              </div>
-
-              {/* Dirección geográfica */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Provincia *
-                  </label>
-                  <input
-                    type="text"
-                    value={provincia}
-                    onChange={(e) => setProvincia(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cantón *
-                  </label>
-                  <input
-                    type="text"
-                    value={canton}
-                    onChange={(e) => setCanton(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Distrito *
-                  </label>
-                  <input
-                    type="text"
-                    value={distrito}
-                    onChange={(e) => setDistrito(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Barrio
-                  </label>
-                  <input
-                    type="text"
-                    value={barrio}
-                    onChange={(e) => setBarrio(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Dirección Exacta */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dirección Exacta *
-                </label>
-                <textarea
-                  rows={2}
-                  value={direccionExacta}
-                  onChange={(e) => setDireccionExacta(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
             </div>
-          )}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Teléfono (solo dígitos) *
+                </label>
+                <input
+                type="text"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                />
+            </div>
+          </div>
+          
+          {/* --- DATOS FISCALES (Opcional) --- */}
+          <h3 className="text-md font-semibold border-b pb-2 pt-2">Datos Fiscales (Para Factura Electrónica)</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo de Identificación
+                </label>
+                <Select
+                selectedKeys={tipoIdentificacion ? new Set([tipoIdentificacion]) : new Set()}
+                onSelectionChange={(keys) =>
+                    setTipoIdentificacion(Array.from(keys)[0] as string || "")
+                }
+                className="w-full"
+                >
+                {[
+                    { key: "Cédula Física", label: "Cédula Física" },
+                    { key: "DIMEX", label: "DIMEX" },
+                    { key: "Cédula Jurídica", label: "Cédula Jurídica" },
+                ].map((item) => (
+                    <SelectItem key={item.key}>{item.label}</SelectItem>
+                ))}
+                </Select>
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Identificación
+                </label>
+                <input
+                type="text"
+                value={identificacion}
+                onChange={(e) => setIdentificacion(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                />
+            </div>
+            <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Correo para Facturación
+                </label>
+                <input
+                type="email"
+                value={correoFacturacion}
+                onChange={(e) => setCorreoFacturacion(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                />
+            </div>
+          </div>
 
-          {/* Notas Internas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Provincia
+              </label>
+              <input
+                type="text"
+                value={provincia}
+                onChange={(e) => setProvincia(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cantón
+              </label>
+              <input
+                type="text"
+                value={canton}
+                onChange={(e) => setCanton(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Distrito
+              </label>
+              <input
+                type="text"
+                value={distrito}
+                onChange={(e) => setDistrito(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Dirección Exacta
+              </label>
+              <textarea
+                rows={2}
+                value={direccionExacta}
+                onChange={(e) => setDireccionExacta(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              />
+            </div>
+          </div>
+          
+
+          {/* Notas internas */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notas Internas (opcional)
@@ -306,21 +293,23 @@ export default function CreateClient({
             />
           </div>
 
-          {/* Botones “Cancelar” / “Guardar Cliente” */}
+          {/* CAMBIO: Se reemplazan los botones nativos por los de HeroUI */}
           <div className="mt-6 flex justify-end space-x-2">
-            <button
+            <Button
               type="button"
-              onClick={onClose}
+              onPress={onClose}
+              variant="light"
               className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 text-sm"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              color="primary"
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white text-sm"
             >
               Guardar Cliente
-            </button>
+            </Button>
           </div>
         </form>
       </div>

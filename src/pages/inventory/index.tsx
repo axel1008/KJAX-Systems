@@ -186,6 +186,7 @@ export default function InventoryPage(): JSX.Element {
       precio_venta,
       status,
       proveedor_id,
+      cabys_code,
       providers!productos_proveedor_id_fkey(id, nombre)
     `;
     const { data, error } = await supabase
@@ -212,6 +213,7 @@ export default function InventoryPage(): JSX.Element {
         proveedor_id: row.proveedor_id,
         proveedor: row.providers?.nombre ?? null,
         status: row.status,
+        cabys_code: row.cabys_code ?? null,
       })) as InventoryItem[];
       setItems(transformed);
     } else {
@@ -250,6 +252,7 @@ export default function InventoryPage(): JSX.Element {
           i.nombre.toLowerCase().includes(q) ||
           (i.categoria ?? "").toLowerCase().includes(q) ||
           (i.proveedor ?? "").toLowerCase().includes(q) ||
+          (i.cabys_code ?? "").includes(q) ||
           `prod-${String(i.id).padStart(3, "0")}`.includes(q);
         if (!matches) return false;
 
@@ -595,7 +598,7 @@ export default function InventoryPage(): JSX.Element {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 my-2">
         <div className="flex-1">
           <ActionToolbar
-            searchPlaceholder="Buscar por ID, nombre,categoría,proveedor..."
+            searchPlaceholder="Buscar por ID, nombre, categoría, proveedor, código CABYS..."
             currentSearchQuery={searchQuery}
             onSearchChange={(e) => {
               setSearchQuery(e.target.value);

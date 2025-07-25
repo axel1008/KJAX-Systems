@@ -8,7 +8,7 @@ export default defineConfig({
     host: true,
     port: 5173,
     allowedHosts: [
-      'relationships-bolivia-complex-regulations.trycloudflare.com',
+      'delivered-seasons-honolulu-captured.trycloudflare.com',
       // ...si antes tenías otros hosts, asegúrate de mantenerlos
     ],
   },
