@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, ReactNode } from "react";
 import {
   AreaChart,
@@ -76,6 +75,11 @@ interface PremiumListProps<T> {
   icon: ReactNode;
 }
 
+// efecto de glow azul debajo al hacer hover (como en inventario)
+const inventoryHoverGlow = "0 25px 50px -12px rgba(14,165,233,0.25), 0 0 30px rgba(14,165,233,0.35)";
+// transición compartida igual a la de las tarjetas métricas
+const hoverTransition = { duration: 0.2, ease: "easeOut" };
+
 // --- Componentes Visuales ---
 const PremiumMetricCard = ({
   title,
@@ -97,11 +101,16 @@ const PremiumMetricCard = ({
 
   return (
     <motion.div
-      className="relative overflow-hidden bg-white rounded-2xl shadow-lg transition-all duration-500 group cursor-pointer hover:shadow-xl hover:-translate-y-1"
+      className="relative overflow-hidden bg-white rounded-2xl shadow-lg transition-all duration-500 group cursor-pointer"
       initial={{ opacity: 0, y: 30, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.6, delay: delay * 0.2, ease: "easeOut" }}
-      whileHover={{ scale: 1.02, y: -5 }}
+      whileHover={{
+        scale: 1.02,
+        y: -5,
+        boxShadow: inventoryHoverGlow,
+        transition: hoverTransition
+      }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
     >
@@ -204,10 +213,16 @@ const AdvancedChart = ({ title, data }: ChartProps<DailySale>) => {
 
   return (
     <motion.div
-      className="relative overflow-hidden bg-white rounded-2xl shadow-lg p-6 transition-all duration-500 group cursor-pointer hover:shadow-xl hover:-translate-y-1"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
+      className="relative overflow-hidden bg-white rounded-2xl p-6 transition-all group cursor-pointer"
+      initial={{ opacity: 0, y: 30, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      whileHover={{
+        scale: 1.02,
+        y: -5,
+        boxShadow: inventoryHoverGlow,
+        transition: hoverTransition
+      }}
     >
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-bold text-slate-800">{title}</h3>
@@ -268,39 +283,37 @@ const AdvancedChart = ({ title, data }: ChartProps<DailySale>) => {
 const StatusDonut = ({ title, data, delay = 0 }: ChartProps<StatusDistribution>) => {
   const [pieKey, setPieKey] = useState(0);
   const controls = useAnimation();
-  const [ref, inView] = useInView({ threshold: 0.3, triggerOnce: true });
+  const [inViewRef, inView] = useInView({ threshold: 0.3, triggerOnce: true });
 
   useEffect(() => {
-    if (inView) controls.start("visible");
-  }, [controls, inView]);
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.4, delay: delay * 0.1, when: "beforeChildren", staggerChildren: 0.07 }
+    if (inView) {
+      controls.start({
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        transition: { duration: 0.6, delay: delay * 0.2, ease: "easeOut" }
+      });
     }
-  };
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
-  };
+  }, [controls, inView, delay]);
 
   return (
     <motion.div
-      ref={ref}
-      className="relative flex flex-col overflow-hidden bg-white rounded-2xl shadow-lg p-6 transition-all duration-500 group cursor-pointer hover:shadow-xl hover:-translate-y-1"
-      variants={cardVariants}
-      initial="hidden"
+      ref={inViewRef}
+      className="relative flex flex-col overflow-hidden bg-white rounded-2xl p-6 transition-all group cursor-pointer"
+      initial={{ opacity: 0, y: 30, scale: 0.9 }}
       animate={controls}
-      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      whileHover={{
+        scale: 1.02,
+        y: -5,
+        boxShadow: inventoryHoverGlow,
+        transition: hoverTransition
+      }}
       onHoverStart={() => setPieKey((prev) => prev + 1)}
     >
-      <motion.h3 variants={itemVariants} className="text-xl font-bold text-slate-800 mb-4 text-center">
+      <motion.h3 className="text-xl font-bold text-slate-800 mb-4 text-center">
         {title}
       </motion.h3>
-      <motion.div variants={itemVariants} className="flex-grow w-full h-full min-h-[180px]">
+      <div className="flex-grow w-full h-full min-h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart key={pieKey}>
             <Pie
@@ -322,10 +335,16 @@ const StatusDonut = ({ title, data, delay = 0 }: ChartProps<StatusDistribution>)
             <Tooltip formatter={(v: number) => [`${v}%`, "Porcentaje"]} />
           </PieChart>
         </ResponsiveContainer>
-      </motion.div>
+      </div>
       <div className="mt-4 space-y-2">
-        {data.map((item) => (
-          <motion.div key={item.name} variants={itemVariants} className="flex items-center justify-between p-2 rounded-lg">
+        {data.map((item, idx) => (
+          <motion.div
+            key={item.name}
+            className="flex items-center justify-between p-2 rounded-lg"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + idx * 0.05, duration: 0.3, ease: "easeOut" }}
+          >
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
               <span className="text-sm font-medium text-slate-700">{item.name}</span>
@@ -341,10 +360,16 @@ const StatusDonut = ({ title, data, delay = 0 }: ChartProps<StatusDistribution>)
 const PremiumList = ({ title, items, icon }: PremiumListProps<TopClient | TopProduct | TopProvider>) => {
   return (
     <motion.div
-      className="relative overflow-hidden bg-white rounded-2xl shadow-lg p-6 transition-all duration-500 group cursor-pointer hover:shadow-xl hover:-translate-y-1"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6 }}
+      className="relative overflow-hidden bg-white rounded-2xl p-6 transition-all group cursor-pointer"
+      initial={{ opacity: 0, y: 30, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      whileHover={{
+        scale: 1.02,
+        y: -5,
+        boxShadow: inventoryHoverGlow,
+        transition: hoverTransition
+      }}
     >
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 rounded-xl bg-blue-50 text-blue-600">{icon}</div>
@@ -544,7 +569,6 @@ export default function ElegantDashboard() {
   }
 
   return (
-    // <-- aquí se cambió solamente esta clase -->
     <div className="flex-1">
       <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
         <div className="flex items-center justify-between">

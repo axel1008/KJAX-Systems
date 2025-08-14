@@ -15,7 +15,6 @@ import CreateDebitNoteModal from "./CreateDebitNoteModal";
 import { CreateBillForm } from "./CreateBillForm";
 import PayBillForm from "./PayBillForm";
 import BillPaymentHistoryModal from "./BillPaymentHistoryModal";
-// --- CAMBIO: Se usan todos los iconos de lucide-react para consistencia ---
 import { Filter, Search, CreditCard, Plus, Eye, HandCoins, FileX2, History } from "lucide-react";
 
 type ColumnKey = 'numero_documento' | 'proveedor_nombre' | 'fecha_emision' | 'fecha_vencimiento' | 'total' | 'saldo_pendiente' | 'estado' | 'acciones';
@@ -37,8 +36,7 @@ const initialFilterState: BillsFilters = {
 };
 
 export const AccountsPayablePage: React.FC = () => {
-  const [searchParams] = useSearchParams(); 
-
+  const [searchParams] = useSearchParams();
   const [bills, setBills] = useState<SupplierBill[]>([]);
   const [notasDebito, setNotasDebito] = useState<NotaDebito[]>([]);
   const [isDebitNoteModalOpen, setIsDebitNoteModalOpen] = useState(false);
@@ -74,7 +72,7 @@ export const AccountsPayablePage: React.FC = () => {
     estado: { key: "estado", label: "Estado", width: "120px" },
     acciones: { key: "acciones", label: "Acciones", width: "180px" },
   };
-  
+
   const fetchDebitNotes = useCallback(async (providerId: string) => {
     if (!providerId || providerId === 'all') {
       setNotasDebito([]);
@@ -96,7 +94,6 @@ export const AccountsPayablePage: React.FC = () => {
   useEffect(() => {
     fetchDebitNotes(activeFilters.providerId);
   }, [activeFilters.providerId, fetchDebitNotes]);
-
 
   const fetchFormData = useCallback(async () => {
     setLoading(true);
@@ -129,10 +126,11 @@ export const AccountsPayablePage: React.FC = () => {
     const { data, error } = await supabase.from("facturas_proveedor").select<string, RawSupplierBill>(
         `id, proveedor_id, orden_compra_id, numero_documento, tipo_documento, fecha_emision, fecha_vencimiento,
          condiciones_pago_id, subtotal, impuestos, total, moneda_id, estado, saldo_pendiente, descripcion,
-         porcentaje_impuesto, dias_credito_calculados, 
-         providers!facturas_proveedor_proveedor_id_fkey(nombre), 
-         condiciones_pago(nombre, dias_credito), 
-         monedas(codigo, descripcion)`
+         porcentaje_impuesto, dias_credito_calculados, archivo_factura_path,
+         providers!facturas_proveedor_proveedor_id_fkey(nombre),
+         condiciones_pago(nombre, dias_credito),
+         monedas(codigo, descripcion),
+         pagos_proveedor(id, fecha_pago, monto_total, medio_pago, moneda_id, archivo_pago_path, monedas(codigo))`
     ).order("fecha_emision", { ascending: false });
 
     if (error) {
@@ -147,6 +145,10 @@ export const AccountsPayablePage: React.FC = () => {
 
             return {
                 ...bill,
+                // --- PUNTO CLAVE ---
+                // Asigna el array del nombre de la BD al nombre esperado por la App
+                pagos: bill.pagos_proveedor, 
+                // --- FIN DEL PUNTO CLAVE ---
                 fecha_emision: bill.fecha_emision ? new Date(bill.fecha_emision).toISOString().split("T")[0] : "N/A",
                 fecha_vencimiento: bill.fecha_vencimiento ? new Date(bill.fecha_vencimiento).toISOString().split("T")[0] : "N/A",
                 proveedor_nombre: bill.providers?.nombre || "Desconocido",
@@ -162,42 +164,42 @@ export const AccountsPayablePage: React.FC = () => {
     setLoadingBills(false);
   }, []);
 
-  const fetchPagosMesActual = useCallback(async () => { 
-    const hoy = new Date(); 
-    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString(); 
-    const { data, error } = await supabase.from('pagos_proveedor').select('monto_total').gte('fecha_pago', primerDiaMes); 
-    if (error) { setPagosMesActual(0); } 
-    else { 
-      const totalPagado = data.reduce((sum, pago) => sum + pago.monto_total, 0); 
-      setPagosMesActual(totalPagado); 
-    } 
+  const fetchPagosMesActual = useCallback(async () => {
+    const hoy = new Date();
+    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString();
+    const { data, error } = await supabase.from('pagos_proveedor').select('monto_total').gte('fecha_pago', primerDiaMes);
+    if (error) { setPagosMesActual(0); }
+    else {
+      const totalPagado = data.reduce((sum, pago) => sum + pago.monto_total, 0);
+      setPagosMesActual(totalPagado);
+    }
   }, []);
 
-  const refreshAllData = useCallback(() => { 
-    fetchSupplierBills(); 
+  const refreshAllData = useCallback(() => {
+    fetchSupplierBills();
     fetchPagosMesActual();
     if (activeFilters.providerId !== 'all') {
       fetchDebitNotes(activeFilters.providerId);
     }
   }, [fetchSupplierBills, fetchPagosMesActual, activeFilters.providerId, fetchDebitNotes]);
-  
-  useEffect(() => { 
-    fetchFormData().then(refreshAllData); 
+
+  useEffect(() => {
+    fetchFormData().then(refreshAllData);
   }, [fetchFormData, refreshAllData]);
 
   useEffect(() => {
     setSearchQuery(searchParams.get('q') || '');
   }, [searchParams]);
 
-  const handleBillActionSuccess = (message: string) => { 
-    toast.success(message); 
-    refreshAllData(); 
-    setIsNewBillModalOpen(false); 
-    setIsPayBillModalOpen(false); 
-    setIsAnnulBillModalOpen(false); 
+  const handleBillActionSuccess = (message: string) => {
+    toast.success(message);
+    refreshAllData();
+    setIsNewBillModalOpen(false);
+    setIsPayBillModalOpen(false);
+    setIsAnnulBillModalOpen(false);
     setIsHistoryModalOpen(false);
     setIsDebitNoteModalOpen(false);
-    setSelectedBill(null); 
+    setSelectedBill(null);
   };
 
   const handleConfirmAnnulBill = async () => {
@@ -223,14 +225,34 @@ export const AccountsPayablePage: React.FC = () => {
     }
   };
 
+  const openPayBillModal = (bill: ProcessedSupplierBill) => {
+    setSelectedBill(bill);
+    setIsPayBillModalOpen(true);
+  };
+
+  const openViewBillModal = (bill: ProcessedSupplierBill) => {
+    setSelectedBill(bill);
+    setIsViewBillModalOpen(true);
+  };
+
+  const openAnnulBillModal = (bill: ProcessedSupplierBill) => {
+    setSelectedBill(bill);
+    setIsAnnulBillModalOpen(true);
+  };
+
+  const openHistoryModal = (bill: ProcessedSupplierBill) => {
+    setSelectedBill(bill);
+    setIsHistoryModalOpen(true);
+  };
+
   const onDragStart = (e: DragEvent<HTMLTableHeaderCellElement>, key: ColumnKey) => { setDraggedKey(key); if(e.dataTransfer) e.dataTransfer.effectAllowed = "move"; };
   const onDragOver = (e: DragEvent<HTMLTableHeaderCellElement>) => e.preventDefault();
   const onDrop = (e: DragEvent<HTMLTableHeaderCellElement>, targetKey: ColumnKey) => { e.preventDefault(); if (!draggedKey || draggedKey === targetKey) return; setColumnOrder(cols => { const arr = [...cols]; const from = arr.indexOf(draggedKey); const to = arr.indexOf(targetKey); arr.splice(from, 1); arr.splice(to, 0, draggedKey); return arr; }); setDraggedKey(null); };
 
-  const formatCurrency = (value: number | undefined | null, currencyCode?: string | null): string => 
+  const formatCurrency = (value: number | undefined | null, currencyCode?: string | null): string =>
     new Intl.NumberFormat("es-CR", { style: "currency", currency: currencyCode || 'CRC' }).format(value || 0);
-  
-  const totalNotasDebito = useMemo(() => 
+
+  const totalNotasDebito = useMemo(() =>
     notasDebito.reduce((sum, nota) => sum + nota.total, 0), [notasDebito]);
 
   const totalPendiente = useMemo(() => {
@@ -249,16 +271,16 @@ export const AccountsPayablePage: React.FC = () => {
   const handleClearFilters = () => { setTempFilters(initialFilterState); setActiveFilters(initialFilterState); };
   const handleDateChange = (date: DateValue | null, part: 'start' | 'end') => { setTempFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, [part]: date ? date.toDate(getLocalTimeZone()) : null } })); };
   const hasActiveFilters = useMemo(() => activeFilters.status !== 'all' || activeFilters.providerId !== 'all' || activeFilters.dateRange.start || activeFilters.dateRange.end, [activeFilters]);
-  
-  const filteredBills = useMemo(() => { 
-      return bills.filter(bill => { 
-          const matchSearch = ((bill.proveedor_nombre || "").toLowerCase().includes(searchQuery.toLowerCase()) || (bill.numero_documento || "").toLowerCase().includes(searchQuery.toLowerCase())); 
-          const matchStatus = activeFilters.status === 'all' || bill.estado === activeFilters.status; 
-          const matchProvider = activeFilters.providerId === 'all' || String(bill.proveedor_id) === activeFilters.providerId; 
-          const billDate = new Date(bill.fecha_emision + 'T00:00:00'); 
-          const matchDate = ((!activeFilters.dateRange.start || billDate >= activeFilters.dateRange.start) && (!activeFilters.dateRange.end || billDate <= activeFilters.dateRange.end)); 
-          return matchSearch && matchStatus && matchProvider && matchDate; 
-      }); 
+
+  const filteredBills = useMemo(() => {
+      return bills.filter(bill => {
+          const matchSearch = ((bill.proveedor_nombre || "").toLowerCase().includes(searchQuery.toLowerCase()) || (bill.numero_documento || "").toLowerCase().includes(searchQuery.toLowerCase()));
+          const matchStatus = activeFilters.status === 'all' || bill.estado === activeFilters.status;
+          const matchProvider = activeFilters.providerId === 'all' || String(bill.proveedor_id) === activeFilters.providerId;
+          const billDate = new Date(bill.fecha_emision + 'T00:00:00');
+          const matchDate = ((!activeFilters.dateRange.start || billDate >= activeFilters.dateRange.start) && (!activeFilters.dateRange.end || billDate <= activeFilters.dateRange.end));
+          return matchSearch && matchStatus && matchProvider && matchDate;
+      });
   }, [bills, searchQuery, activeFilters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBills.length / rowsPerPage));
@@ -316,7 +338,7 @@ export const AccountsPayablePage: React.FC = () => {
           </Button>
         </div>
       </div>
-      
+
       {activeFilters.providerId !== 'all' && notasDebito.length > 0 && (
         <div className="bg-white shadow-md rounded-lg border overflow-hidden mb-4">
           <h3 className="text-md font-semibold p-4 bg-orange-50 border-b border-orange-200 text-orange-800">Notas de Débito para el Proveedor Seleccionado</h3>
@@ -357,11 +379,10 @@ export const AccountsPayablePage: React.FC = () => {
                 return (<tr key={bill.id} className="hover:bg-gray-50 transition-colors">{columnOrder.map(colKey => (<td key={colKey} className="px-4 py-3 text-center text-gray-700 whitespace-nowrap">{
                     colKey === 'acciones' ? (
                         <div className="flex justify-center space-x-2">
-                            <button type="button" onClick={() => { setSelectedBill(processedBill); setIsViewBillModalOpen(true); }} title="Ver" className="p-2 rounded-full transition text-gray-600 hover:text-sky-600"><Eye size={18} /></button>
-                            <button type="button" onClick={() => { setSelectedBill(processedBill); setIsPayBillModalOpen(true); }} className="transition text-gray-600 hover:text-green-600" disabled={processedBill.estado === 'Pagada' || processedBill.estado === 'Anulada'} title="Pagar"><HandCoins size={18} /></button>
-                            <button type="button" onClick={() => { setSelectedBill(processedBill); setIsAnnulBillModalOpen(true); }} className="transition text-gray-600 hover:text-red-600" disabled={processedBill.estado === 'Anulada' || processedBill.estado === 'Pagada'} title="Anular"><FileX2 size={18} /></button>
-                            {/* --- CAMBIO: Icono de Historial ahora es de Lucide para consistencia --- */}
-                            <button type="button" onClick={() => { setSelectedBill(processedBill); setIsHistoryModalOpen(true); }} className="transition text-gray-600 hover:text-purple-500" title="Historial de Pagos"><History size={18} /></button>
+                            <button type="button" onClick={() => openViewBillModal(processedBill)} title="Ver" className="p-2 rounded-full transition text-gray-600 hover:text-sky-600"><Eye size={18} /></button>
+                            <button type="button" onClick={() => openPayBillModal(processedBill)} className="transition text-gray-600 hover:text-green-600" disabled={processedBill.estado === 'Pagada' || processedBill.estado === 'Anulada'} title="Pagar"><HandCoins size={18} /></button>
+                            <button type="button" onClick={() => openAnnulBillModal(processedBill)} className="transition text-gray-600 hover:text-red-600" disabled={processedBill.estado === 'Anulada' || processedBill.estado === 'Pagada'} title="Anular"><FileX2 size={18} /></button>
+                            <button type="button" onClick={() => openHistoryModal(processedBill)} className="transition text-gray-600 hover:text-purple-500" title="Historial de Pagos"><History size={18} /></button>
                         </div>
                     ) : colKey === 'estado' ? processedBill.estado_badge : colKey === 'total' ? processedBill.total_formatted : colKey === 'saldo_pendiente' ? processedBill.saldo_pendiente_formatted : (bill as any)[colKey]}</td>))}</tr>);
               })}
@@ -386,7 +407,7 @@ export const AccountsPayablePage: React.FC = () => {
           </table>
         </div>
       </div>
-      
+
       {isFilterModalOpen && (
         <Modal size="2xl" isOpen={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
           <ModalContent>
@@ -465,7 +486,7 @@ export const AccountsPayablePage: React.FC = () => {
           </ModalContent>
         </Modal>
       )}
-      
+
       {isDebitNoteModalOpen && activeFilters.providerId !== 'all' && (
         <CreateDebitNoteModal
           isOpen={isDebitNoteModalOpen}

@@ -1,7 +1,8 @@
 <?php
-require_once __DIR__ . '/../../src/services/EmailFacturacionService.php';
+require_once __DIR__ . '/../../src/service/EmailFacturacionService.php';
+require_once __DIR__ . '/../../src/service/SupabaseService.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
-require_once __DIR__ . '/../../config/database.php'; // Tu configuración de Supabase
+require_once __DIR__ . '/../../config/config.php';
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -26,8 +27,11 @@ if (!$data || !isset($data['factura_id'])) {
 }
 
 try {
-    // Inicializar servicio
-    $emailService = new EmailFacturacionService($supabase); // Tu instancia de Supabase
+    // Inicializar Supabase PRIMERO
+    $supabase = new SupabaseService();
+    
+    // LUEGO inicializar EmailService CON Supabase
+    $emailService = new EmailFacturacionService($supabase);
     
     // Validar configuración
     $validacion = $emailService->validarConfiguracion();

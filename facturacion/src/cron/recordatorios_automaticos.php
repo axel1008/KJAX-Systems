@@ -1,195 +1,215 @@
 <?php
-// Configurar la zona horaria
+declare(strict_types=1);
+
+/**
+ * CRON: Recordatorios automáticos de facturas a crédito
+ * - Tres días antes del vencimiento
+ * - El día del vencimiento (recomendado 07:00 a.m. CR)
+ *
+ * Uso:
+ *   php src/cron/recordatorios_automaticos.php
+ *   php src/cron/recordatorios_automaticos.php --modo=vence_hoy
+ *   php src/cron/recordatorios_automaticos.php --modo=tres_dias
+ */
+
 date_default_timezone_set('America/Costa_Rica');
 
-// Incluir dependencias
-require_once __DIR__ . '/../../vendor/autoload.php';
-require_once __DIR__ . '/../service/EmailBasicoService.php';
+/* ===================== Includes ===================== */
+$base = dirname(__DIR__);        // .../src
+$root = dirname($base);          // project root
 
-// Usar PHPMailer
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
-use PHPMailer\PHPMailer\Exception as PHPMailerException;
+$autoload = $root . '/vendor/autoload.php';
+if (file_exists($autoload)) {
+    require_once $autoload; // Composer (si lo usas)
+}
 
-echo "=== INICIANDO PROCESO DE RECORDATORIOS AUTOMÁTICOS ===\n";
-echo "Fecha: " . date('Y-m-d H:i:s') . "\n\n";
+$sbPath    = $base . '/service/SupabaseService.php';
+$mailPath  = $base . '/service/EmailBasicoService.php';
+if (file_exists($sbPath))   require_once $sbPath;
+if (file_exists($mailPath)) require_once $mailPath;
+
+$configMailPath = $root . '/config/email_config.php';
+$configMail = file_exists($configMailPath) ? include $configMailPath : [
+    'empresa' => ['nombre' => 'Tu Empresa']
+];
+
+/* ===== Aliases por si tus clases usan namespace App\Service ===== */
+if (!class_exists('SupabaseService') && class_exists('\App\Service\SupabaseService')) {
+    class_alias('\App\Service\SupabaseService', 'SupabaseService');
+}
+if (!class_exists('EmailBasicoService') && class_exists('\App\Service\EmailBasicoService')) {
+    class_alias('\App\Service\EmailBasicoService', 'EmailBasicoService');
+}
+
+/* ===================== Helpers ===================== */
+
+/** Lee --modo=... (vence_hoy|tres_dias|ambos) */
+function leerModoDesdeCLI(array $argv): string {
+    foreach ($argv as $arg) {
+        if (strpos($arg, '--modo=') === 0) {
+            $val = substr($arg, 7);
+            if (in_array($val, ['vence_hoy','tres_dias','ambos'], true)) return $val;
+        }
+    }
+    return 'ambos';
+}
+
+function asuntoRecordatorio(string $tipo, array $f): string {
+    $num = !empty($f['consecutivo']) ? $f['consecutivo'] : substr((string)$f['id'], 0, 8);
+    if ($tipo === 'emision') {
+        return "📄 Factura emitida #{$num}";
+    }
+    return $tipo === 'tres_dias'
+        ? "Recordatorio: factura {$num} vence en 3 días"
+        : "Recordatorio: factura {$num} vence hoy";
+}
+
+function cuerpoRecordatorioHTML(string $tipo, array $f, array $empresa): string {
+    $vence  = !empty($f['fecha_vencimiento']) ? date('d/m/Y', strtotime((string)$f['fecha_vencimiento'])) : 'N/D';
+    $total  = (float)($f['total_factura'] ?? 0);
+    $saldoP = (float)($f['saldo_pendiente'] ?? $total);
+    $montoTotal  = number_format($total, 2);
+    $montoSaldo  = number_format($saldoP, 2);
+    $moneda = !empty($f['moneda']) ? $f['moneda'] : 'CRC';
+    $num    = !empty($f['consecutivo']) ? htmlspecialchars((string)$f['consecutivo']) : substr((string)$f['id'], 0, 8);
+
+    $empresaNombre = htmlspecialchars((string)($empresa['nombre'] ?? 'Tu Empresa'));
+
+    $mensajeTipo = [
+        'emision'    => "Se ha emitido tu factura.",
+        'tres_dias'  => "Tu factura vence en 3 días (fecha de pago {$vence}).",
+        'vence_hoy'  => "Tu factura vence <strong>hoy</strong> ({$vence}).",
+    ][$tipo] ?? "Recordatorio de factura.";
+
+    return "
+  <div style='font-family:Arial,sans-serif;max-width:600px;margin:auto'>
+    <h2>Recordatorio de pago</h2>
+    <p>{$mensajeTipo}</p>
+    <ul>
+      <li><strong>Número:</strong> {$num}</li>
+      <li><strong>Vencimiento:</strong> {$vence}</li>
+      <li><strong>Total:</strong> {$moneda} {$montoTotal}</li>
+      <li><strong>Saldo pendiente:</strong> {$moneda} {$montoSaldo}</li>
+    </ul>
+    <p>Si ya realizaste el pago, puedes ignorar este mensaje.</p>
+    <hr>
+    <p style='font-size:12px;color:#666'>Este es un mensaje automático de {$empresaNombre}.</p>
+  </div>";
+}
+
+/**
+ * Envía un recordatorio y registra en log si fue exitoso.
+ */
+function procesarLote(string $tipo, array $facturas, $sb, $mailer, array $configMail): array {
+    $ok = 0; $err = 0;
+
+    if (!is_object($sb) || !method_exists($sb, 'yaSeEnvioRecordatorio') || !method_exists($sb, 'registrarRecordatorio') || !method_exists($sb, 'getFactura')) {
+        throw new RuntimeException('SupabaseService no válido o métodos faltantes.');
+    }
+    if (!is_object($mailer) || !method_exists($mailer, 'enviarCorreoBasico')) {
+        throw new RuntimeException('EmailBasicoService no válido o método enviarCorreoBasico faltante.');
+    }
+
+    foreach ($facturas as $f) {
+        $fid = (string)$f['id'];
+
+        // Idempotencia por tipo
+        if ($sb->yaSeEnvioRecordatorio($fid, $tipo)) {
+            echo " - Saltando {$fid} (ya enviado {$tipo})\n";
+            continue;
+        }
+
+        // REFRESCAR datos de la factura para leer saldo actualizado
+        $fRef = $sb->getFactura($fid) ?: $f;
+        $total = (float)($fRef['total_factura'] ?? 0);
+        $saldo = (float)($fRef['saldo_pendiente'] ?? $total);
+
+        // Si ya está saldada, no enviar (pago total)
+        if ($saldo <= 0) {
+            echo " - Saltando {$fid} (saldo 0, ya pagada)\n";
+            continue;
+        }
+
+        // Obtener email del cliente
+        $emailCliente = $fRef['cliente_email'] ?? null;
+        if (!$emailCliente && !empty($fRef['cliente_id']) && method_exists($sb, 'getCliente')) {
+            $cliente = $sb->getCliente((string)$fRef['cliente_id']);
+            $emailCliente = $cliente['email'] ?? $cliente['correo'] ?? null;
+        }
+        if (!$emailCliente) {
+            echo " - Sin email de cliente, no se envía (factura {$fid}).\n";
+            $err++;
+            continue;
+        }
+
+        // Enriquecer la data que va al template (incluye saldo)
+        $fData = $fRef;
+        $fData['saldo_pendiente'] = $saldo;
+
+        $subject = asuntoRecordatorio($tipo, $fData);
+        $html    = cuerpoRecordatorioHTML($tipo, $fData, $configMail['empresa'] ?? []);
+
+        $res = $mailer->enviarCorreoBasico($emailCliente, $subject, $html);
+        $exito = is_array($res) ? !empty($res['success']) : (bool)$res;
+
+        if ($exito) {
+            $sb->registrarRecordatorio($fid, $tipo);
+            $ok++;
+            echo " - Enviado OK a {$emailCliente}\n";
+        } else {
+            $err++;
+            $msg = is_array($res) && !empty($res['error']) ? $res['error'] : 'Error desconocido';
+            echo " - Error al enviar a {$emailCliente}: {$msg}\n";
+        }
+    }
+
+    return ['ok' => $ok, 'err' => $err];
+}
+
+/* ===================== Main ===================== */
+
+echo "=== Recordatorios automáticos === " . date('Y-m-d H:i:s') . " (America/Costa_Rica)\n";
 
 try {
-    // Cargar configuración
-    $config = include __DIR__ . '/../../config/email_config.php';
-    
-    if (!$config) {
-        throw new Exception('No se pudo cargar la configuración de email');
-    }
-    
-    echo "✅ Configuración cargada correctamente\n";
-    
-    // Verificar horario
-    $horaActual = date('H:i');
-    $diaActual = date('N'); // 1=Lunes, 7=Domingo
-    
-    $horarioInicio = $config['automatico']['horario_envio'][0];
-    $horarioFin = $config['automatico']['horario_envio'][1];
-    
-    echo "🕒 Hora actual: {$horaActual}\n";
-    echo "📅 Día actual: {$diaActual} (1=Lun, 7=Dom)\n";
-    
-    if ($horaActual < $horarioInicio || $horaActual > $horarioFin) {
-        echo "❌ Fuera del horario de envío ({$horarioInicio} - {$horarioFin})\n";
-        exit;
-    }
-    
-    if ($config['automatico']['dias_habiles'] && ($diaActual == 6 || $diaActual == 7)) {
-        echo "❌ No es día hábil (sábado/domingo)\n";
-        exit;
-    }
-    
-    echo "✅ Horario y día válidos para envío\n";
-    
-    // Simular obtención de facturas (reemplazar con tu lógica de Supabase)
-    $facturasPendientes = obtenerFacturasSimuladas();
-    
-    echo "📋 Facturas encontradas para recordatorio: " . count($facturasPendientes) . "\n\n";
-    
-    $exitosos = 0;
-    $errores = 0;
-    
-    // Inicializar servicio de email
-    $emailService = new EmailBasicoService();
-    
-    foreach ($facturasPendientes as $factura) {
-        echo "📧 Procesando factura {$factura['consecutivo']}\n";
-        echo "   📅 Vencimiento: {$factura['fecha_vencimiento']}\n";
-        echo "   👤 Cliente: {$factura['cliente_nombre']} ({$factura['cliente_email']})\n";
-        
-        // Calcular días vencido
-        $diasVencido = calcularDiasVencimiento($factura['fecha_vencimiento']);
-        echo "   ⏰ Días de vencimiento: {$diasVencido}\n";
-        
-        // Enviar recordatorio
-        $resultado = enviarRecordatorioSimulado($factura, $config, $emailService);
-        
-        if ($resultado['success']) {
-            echo "   ✅ Recordatorio enviado exitosamente\n";
-            $exitosos++;
-        } else {
-            echo "   ❌ Error: {$resultado['error']}\n";
-            $errores++;
+    $sbClass = class_exists('SupabaseService') ? 'SupabaseService'
+             : (class_exists('\App\Service\SupabaseService') ? '\App\Service\SupabaseService' : null);
+    if (!$sbClass) throw new RuntimeException('No se encontró SupabaseService');
+    $sb = new $sbClass();
+
+    $mailerClass = class_exists('EmailBasicoService') ? 'EmailBasicoService'
+                 : (class_exists('\App\Service\EmailBasicoService') ? '\App\Service\EmailBasicoService' : null);
+    if (!$mailerClass) throw new RuntimeException('No se encontró EmailBasicoService');
+    $mailer = new $mailerClass();
+
+    $modo = PHP_SAPI === 'cli' ? leerModoDesdeCLI($argv) : 'ambos';
+    echo "Modo: {$modo}\n";
+
+    $tz = new DateTimeZone('America/Costa_Rica');
+    $hoy  = (new DateTime('now', $tz))->format('Y-m-d');
+    $mas3 = (new DateTime('now', $tz))->modify('+3 day')->format('Y-m-d');
+
+    if ($modo === 'vence_hoy' || $modo === 'ambos') {
+        echo "[Lote] VENCE HOY ({$hoy})\n";
+        if (!method_exists($sb, 'getFacturasPorVencimiento')) {
+            throw new RuntimeException('Falta método getFacturasPorVencimiento en SupabaseService');
         }
-        
-        echo "\n";
-        
-        // Delay entre envíos
-        if (isset($config['tecnico']['delay_entre_envios']) && $config['tecnico']['delay_entre_envios'] > 0) {
-            sleep($config['tecnico']['delay_entre_envios']);
-        }
+        $lista = $sb->getFacturasPorVencimiento($hoy);
+        $res = procesarLote('vence_hoy', $lista, $sb, $mailer, $configMail);
+        echo "Resumen vence hoy → enviados: {$res['ok']}, errores: {$res['err']}\n";
     }
-    
-    echo "=== RESUMEN DEL PROCESO ===\n";
-    echo "✅ Recordatorios enviados exitosamente: {$exitosos}\n";
-    echo "❌ Errores: {$errores}\n";
-    echo "📊 Total procesadas: " . ($exitosos + $errores) . "\n";
-    echo "🕒 Finalizado: " . date('Y-m-d H:i:s') . "\n";
-    
-} catch (Exception $e) {
-    echo "💥 ERROR CRÍTICO: " . $e->getMessage() . "\n";
-    error_log("Error en recordatorios automáticos: " . $e->getMessage());
-}
 
-function obtenerFacturasSimuladas() {
-    // Datos de prueba - reemplazar con tu consulta a Supabase
-    return [
-        [
-            'id' => 'test-001',
-            'consecutivo' => '001001010000000001',
-            'cliente_email' => 'cliente@test.com',
-            'cliente_nombre' => 'Cliente de Prueba',
-            'fecha_vencimiento' => date('Y-m-d', strtotime('+1 day')),
-            'total_factura' => 150000.00,
-            'saldo_pendiente' => 150000.00
-        ],
-        [
-            'id' => 'test-002',
-            'consecutivo' => '001001010000000002',
-            'cliente_email' => 'cliente2@test.com',
-            'cliente_nombre' => 'Segundo Cliente',
-            'fecha_vencimiento' => date('Y-m-d', strtotime('-5 days')),
-            'total_factura' => 75000.00,
-            'saldo_pendiente' => 75000.00
-        ]
-    ];
-}
-
-function enviarRecordatorioSimulado($factura, $config, $emailService) {
-    try {
-        // Generar asunto
-        $diasVencido = calcularDiasVencimiento($factura['fecha_vencimiento']);
-        
-        if ($diasVencido > 0) {
-            $asunto = "⚠️ Factura Vencida #{$factura['consecutivo']} - {$config['empresa']['nombre']}";
-        } else {
-            $asunto = "🔔 Recordatorio: Factura por Vencer #{$factura['consecutivo']}";
-        }
-        
-        // Generar mensaje
-        $mensaje = generarMensajeRecordatorio($factura, $config, $diasVencido);
-        
-        // Simular envío (comentar esta línea y descomentar la siguiente para envío real)
-        echo "   📧 SIMULANDO envío de recordatorio a: {$factura['cliente_email']}\n";
-        echo "   📝 Asunto: {$asunto}\n";
-        
-        // Para envío real, descomentar esta línea:
-        // return $emailService->enviarEmail($factura['cliente_email'], $asunto, $mensaje);
-        
-        return ['success' => true, 'message' => 'Simulación exitosa'];
-        
-    } catch (Exception $e) {
-        return ['success' => false, 'error' => $e->getMessage()];
+    if ($modo === 'tres_dias' || $modo === 'ambos') {
+        echo "[Lote] TRES DÍAS ANTES ({$mas3})\n";
+        $lista = $sb->getFacturasPorVencimiento($mas3);
+        $res = procesarLote('tres_dias', $lista, $sb, $mailer, $configMail);
+        echo "Resumen 3 días antes → enviados: {$res['ok']}, errores: {$res['err']}\n";
     }
-}
 
-function generarMensajeRecordatorio($factura, $config, $diasVencido) {
-    $mensajeVencimiento = '';
-    if ($diasVencido > 0) {
-        $mensajeVencimiento = "Su factura está <strong>VENCIDA</strong> hace <strong>{$diasVencido} días</strong>.";
-    } elseif ($diasVencido === 0) {
-        $mensajeVencimiento = "Su factura <strong>VENCE HOY</strong>.";
-    } else {
-        $diasRestantes = abs($diasVencido);
-        $mensajeVencimiento = "Su factura vence en <strong>{$diasRestantes} días</strong>.";
-    }
-    
-    return "
-    <h2>Recordatorio de Factura</h2>
-    <p>Estimado/a {$factura['cliente_nombre']},</p>
-    <p>{$mensajeVencimiento}</p>
-    
-    <h3>Detalles de la Factura:</h3>
-    <ul>
-        <li><strong>Número:</strong> {$factura['consecutivo']}</li>
-        <li><strong>Fecha de vencimiento:</strong> " . date('d/m/Y', strtotime($factura['fecha_vencimiento'])) . "</li>
-        <li><strong>Monto total:</strong> ₡" . number_format($factura['total_factura'], 2) . "</li>
-        <li><strong>Saldo pendiente:</strong> ₡" . number_format($factura['saldo_pendiente'], 2) . "</li>
-    </ul>
-    
-    <h3>Para proceder con el pago:</h3>
-    <ul>
-        <li><strong>Teléfono:</strong> {$config['empresa']['telefono']}</li>
-        <li><strong>Email:</strong> {$config['empresa']['email']}</li>
-    </ul>
-    
-    <p>Agradecemos su pronta atención.</p>
-    <p>Saludos cordiales,<br><strong>{$config['empresa']['nombre']}</strong></p>
-    ";
-}
+    echo "✔ Finalizado\n";
+    exit(0);
 
-function calcularDiasVencimiento($fechaVencimiento) {
-    if (!$fechaVencimiento) return 0;
-    
-    $hoy = new DateTime();
-    $vencimiento = new DateTime($fechaVencimiento);
-    $diferencia = $hoy->diff($vencimiento);
-    
-    return $vencimiento < $hoy ? $diferencia->days : -$diferencia->days;
+} catch (Throwable $e) {
+    error_log("[Recordatorios] " . $e->getMessage());
+    fwrite(STDERR, "✖ Error: " . $e->getMessage() . "\n");
+    exit(1);
 }
-?>

@@ -1,4 +1,26 @@
+import { useState, useEffect } from "react";
 import type { Cliente } from "./types";
+import { supabase } from "../../supabaseClient";
+
+interface Provincia {
+  id: number;
+  codigo: string;
+  nombre: string;
+}
+
+interface Canton {
+  id: number;
+  codigo: string;
+  nombre: string;
+  provincia_id: number;
+}
+
+interface Distrito {
+  id: number;
+  codigo: string;
+  nombre: string;
+  canton_id: number;
+}
 
 interface ViewClientProps {
   isOpen: boolean;
@@ -11,6 +33,55 @@ export default function ViewClient({
   onClose,
   client,
 }: ViewClientProps) {
+  const [provinciaNombre, setProvinciaNombre] = useState<string | null>(null);
+  const [cantonNombre, setCantonNombre] = useState<string | null>(null);
+  const [distritoNombre, setDistritoNombre] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && client.requiere_electronica) {
+      const fetchDivisionTerritorial = async () => {
+        try {
+          // Cargar nombre de la provincia
+          if (client.provincia_id) {
+            const { data: provinciaData } = await supabase
+              .from("provincias")
+              .select("nombre")
+              .eq("id", client.provincia_id)
+              .single();
+            setProvinciaNombre(provinciaData?.nombre || "---");
+          }
+
+          // Cargar nombre del cantón
+          if (client.canton_id) {
+            const { data: cantonData } = await supabase
+              .from("cantones")
+              .select("nombre")
+              .eq("id", client.canton_id)
+              .single();
+            setCantonNombre(cantonData?.nombre || "---");
+          }
+
+          // Cargar nombre del distrito
+          if (client.distrito_id) {
+            const { data: distritoData } = await supabase
+              .from("distritos")
+              .select("nombre")
+              .eq("id", client.distrito_id)
+              .single();
+            setDistritoNombre(distritoData?.nombre || "---");
+          }
+        } catch (error) {
+          console.error("Error fetching division territorial:", error);
+          setProvinciaNombre("---");
+          setCantonNombre("---");
+          setDistritoNombre("---");
+        }
+      };
+
+      fetchDivisionTerritorial();
+    }
+  }, [isOpen, client.requiere_electronica, client.provincia_id, client.canton_id, client.distrito_id]);
+
   if (!isOpen) return null;
 
   return (
@@ -108,15 +179,15 @@ export default function ViewClient({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Provincia:</p>
-                    <p className="text-gray-800">{client.provincia}</p>
+                    <p className="text-gray-800">{provinciaNombre || "---"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Cantón:</p>
-                    <p className="text-gray-800">{client.canton}</p>
+                    <p className="text-gray-800">{cantonNombre || "---"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Distrito:</p>
-                    <p className="text-gray-800">{client.distrito}</p>
+                    <p className="text-gray-800">{distritoNombre || "---"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Barrio:</p>
@@ -130,35 +201,6 @@ export default function ViewClient({
                   </div>
                 </>
               )}
-            </div>
-          </div>
-
-          {/* Límite de Crédito y Método de Pago */}
-          <div>
-            <h3 className="text-md font-semibold border-b border-gray-200 pb-1 mb-2">
-              Crédito / Preferencias de Pago
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Límite de Crédito:</p>
-                <p className="text-gray-800">
-                  {client.limite_credito != null
-                    ? `₡ ${client.limite_credito}`
-                    : "---"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Días Crédito:</p>
-                <p className="text-gray-800">
-                  {client.dias_credito != null ? client.dias_credito : "---"}
-                </p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-sm text-gray-600">Método Pago Preferido:</p>
-                <p className="text-gray-800">
-                  {client.metodo_pago_preferido ?? "---"}
-                </p>
-              </div>
             </div>
           </div>
 

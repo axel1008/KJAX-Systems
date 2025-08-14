@@ -25,26 +25,32 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ text, type }) => {
     case "insert":
       colorClasses = "bg-green-100 text-green-800 border border-green-200/80";
       break;
+// --- Colores Rojos ---
+case "inactive":
+case "out-of-stock":
+case "overdue":
+case "vencida":
+case "agotado":
+case "stock agotado": // <-- Añadido
+case "delete":
+  colorClasses = "bg-red-100 text-red-700 border border-red-200/80";
+  break;
 
-    // --- Colores Amarillos ---
-    case "low-stock":
-    case "pending":
-    case "pendiente": // Añadido
-    case "bajo stock":
-    case "en preparación":
-    case "update":
-      colorClasses = "bg-yellow-100 text-yellow-800 border border-yellow-200/80";
-      break;
+// --- Colores Amarillos ---
+case "low-stock":
+case "pending":
+case "pendiente":
+case "bajo stock":
+case "stock bajo": // <-- Añadido
+case "en preparación":
+case "update":
+  colorClasses = "bg-yellow-100 text-yellow-800 border border-yellow-200/80";
+  break;
 
-    // --- Colores Rojos ---
-    case "inactive":
-    case "out-of-stock":
-    case "overdue":
-    case "vencida": // Añadido
-    case "agotado":
-    case "delete":
-      colorClasses = "bg-red-100 text-red-700 border border-red-200/80";
-      break;
+// --- Colores Naranja ---
+case "sobre stock": // <-- Añadido
+  colorClasses = "bg-orange-100 text-orange-800 border border-orange-200/80";
+  break;
       
     // --- Colores Azules ---
     case "parcial": // Añadido

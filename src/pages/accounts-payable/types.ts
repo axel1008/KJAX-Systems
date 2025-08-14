@@ -33,6 +33,16 @@ export interface NotaDebito {
 };
 // -------------------------
 
+export interface PaymentProof {
+  id: string;
+  fecha_pago: string;
+  monto_total: number;
+  medio_pago: string;
+  moneda_id: number;
+  archivo_pago_path?: string | null;
+  monedas: { codigo: string } | null;
+}
+
 export interface RawSupplierBill {
   id: string; 
   proveedor_id: number;
@@ -51,9 +61,11 @@ export interface RawSupplierBill {
   descripcion: string | null;
   porcentaje_impuesto?: number | null;
   dias_credito_calculados?: number | null;
+  archivo_factura_path?: string | null;
   providers: { nombre: string } | null;
   condiciones_pago?: { nombre?: string | null } | null; 
   monedas?: { codigo?: string | null } | null; 
+  pagos_proveedor: PaymentProof[];
 }
 
 export interface SupplierBill {
@@ -73,11 +85,13 @@ export interface SupplierBill {
   saldo_pendiente: number;
   descripcion: string | null;
   porcentaje_impuesto?: number | null;
+  archivo_factura_path?: string | null;
   proveedor_nombre: string;
   condicion_pago_nombre?: string | null;
   moneda_codigo?: string | null;
   dias_vencimiento: number;
   dias_credito_calculados?: number | null;
+  pagos: PaymentProof[];
 }
 
 export type ProcessedSupplierBill = SupplierBill & {
@@ -128,4 +142,5 @@ export interface PaymentFormData {
   moneda_pago_id: number | null; 
   referencia_pago?: string | null;
   nota?: string | null;
+  comprobante_path?: string | null;
 }

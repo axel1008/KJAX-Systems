@@ -1,8 +1,6 @@
-// RUTA: src/pages/production-reports/index.tsx (CORREGIDO)
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, startOfQuarter, endOfQuarter, startOfYear, endOfYear, format } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { toast } from 'react-hot-toast';
 import { utils, writeFile } from 'xlsx';
@@ -60,7 +58,8 @@ export default function ProductionReportsPage() {
             try {
                 const { start, end } = getDateRange(period);
                 let salesQuery = supabase.from('facturas').select('*, clientes(nombre), moneda, detalle, condicion_venta').gte('fecha_emision', start.toISOString()).lte('fecha_emision', end.toISOString());
-                if (invoiceType === 'electronicas') { salesQuery = salesQuery.not('clave_hacienda', 'is', null); } else if (invoiceType === 'normales') { salesQuery = salesQuery.is('clave_hacienda', null); }
+                if (invoiceType === 'electronicas') {salesQuery = salesQuery.not('clave', 'is', null); }
+                else if (invoiceType === 'normales') {salesQuery = salesQuery.filter('clave', 'is', null); }
                 
                 const [
                     debtRes, inventoryRes, salesRes, clientsRes,
@@ -134,7 +133,6 @@ export default function ProductionReportsPage() {
                 const ventasMapped: VentaDetallada[] = [];
                 (salesRes.data as ClientInvoiceForReport[] || []).forEach(factura => {
                     try {
-                        // --- CORRECCIÓN CRÍTICA AQUÍ ---
                         const detalleData = factura.detalle;
                         const detalles = typeof detalleData === 'string' 
                             ? JSON.parse(detalleData || '[]') 
@@ -183,28 +181,33 @@ export default function ProductionReportsPage() {
     return (
         <div className="p-4 md:p-6 lg:p-8 space-y-6">
             <PageHeader
-                title="Reportes de Operación"
+                title={
+                    <div className="flex items-center text-2xl font-bold text-gray-900">
+                        <Icon icon="lucide:bar-chart-3" className="h-6 w-6 text-black mr-2" />
+                        Reportes de Operación
+                    </div>
+                }
                 subtitle="Visualiza y exporta datos clave de tu negocio."
             />
             <div className="bg-white p-4 rounded-xl shadow-md border border-slate-200/60 flex flex-col md:flex-row items-center gap-4">
-              <div className="w-full md:w-auto flex-grow">
-                  <Select label="Período del Reporte" selectedKeys={new Set([period])} onSelectionChange={(keys) => setPeriod(Array.from(keys as Set<React.Key>)[0] as Period)}>
-                      <SelectItem key="weekly">Semanal</SelectItem>
-                      <SelectItem key="biweekly">Quincenal</SelectItem>
-                      <SelectItem key="monthly">Mensual</SelectItem>
-                      <SelectItem key="quarterly">Trimestral</SelectItem>
-                      <SelectItem key="yearly">Anual</SelectItem>
-                  </Select>
-              </div>
-              <div className="w-full md:w-auto flex-grow">
-                    <Select label="Tipo de Factura (Ventas)" selectedKeys={new Set([invoiceType])} onSelectionChange={(keys) => setInvoiceType(Array.from(keys as Set<React.Key>)[0] as InvoiceType)}>
-                      <SelectItem key="ambas">Ambas</SelectItem>
-                      <SelectItem key="electronicas">Electrónicas</SelectItem>
-                      <SelectItem key="normales">Tiquetes (normales)</SelectItem>
-                  </Select>
-              </div>
+                <div className="w-full md:w-auto flex-grow">
+                    <Select label="Período del Reporte" selectedKeys={new Set([period])} onSelectionChange={(keys) => setPeriod(Array.from(keys as Set<React.Key>)[0] as Period)}>
+                        <SelectItem key="weekly">Semanal</SelectItem>
+                        <SelectItem key="biweekly">Quincenal</SelectItem>
+                        <SelectItem key="monthly">Mensual</SelectItem>
+                        <SelectItem key="quarterly">Trimestral</SelectItem>
+                        <SelectItem key="yearly">Anual</SelectItem>
+                    </Select>
+                </div>
+                <div className="w-full md:w-auto flex-grow">
+                     <Select label="Tipo de Factura (Ventas)" selectedKeys={new Set([invoiceType])} onSelectionChange={(keys) => setInvoiceType(Array.from(keys as Set<React.Key>)[0] as InvoiceType)}>
+                        <SelectItem key="ambas">Ambas</SelectItem>
+                        <SelectItem key="electronicas">Electrónicas</SelectItem>
+                        <SelectItem key="normales">Tiquetes (normales)</SelectItem>
+                    </Select>
+                </div>
             </div>
-    <ReporteImpuestosVentas />
+            <ReporteImpuestosVentas />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
                  <MetricCard 
                     title={salesReportTitle}

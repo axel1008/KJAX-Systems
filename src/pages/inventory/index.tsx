@@ -37,6 +37,7 @@ import CategoryModal from "./CategoryModal";
 import { ActionToolbar } from "../../components/ui/action-toolbar";
 import type { InventoryItem } from "./types";
 import { useAuth } from "../../Context/AuthContext";
+import { StatusBadge } from "../../components/ui/status-badge";
 
 type ColumnKey =
   | "id"
@@ -119,6 +120,8 @@ export default function InventoryPage(): JSX.Element {
     "acciones",
   ]);
   const [draggedKey, setDraggedKey] = useState<ColumnKey | null>(null);
+  const isActive = (v: any) =>
+  v === true || v === 1 || v === "1" || v === "true";
 
   // Estadísticas para las tarjetas
   const alertStockCount = useMemo(
@@ -244,48 +247,61 @@ export default function InventoryPage(): JSX.Element {
     return provs.map((prov) => ({ key: prov!, label: prov! }));
   }, [items]);
 
-  const filteredItems = useMemo(
-    () =>
-      items.filter((i) => {
-        const q = searchQuery.toLowerCase();
-        let matches =
-          i.nombre.toLowerCase().includes(q) ||
-          (i.categoria ?? "").toLowerCase().includes(q) ||
-          (i.proveedor ?? "").toLowerCase().includes(q) ||
-          (i.cabys_code ?? "").includes(q) ||
-          `prod-${String(i.id).padStart(3, "0")}`.includes(q);
-        if (!matches) return false;
+ const filteredItems = useMemo(
+  () =>
+    items.filter((i) => {
+      const q = searchQuery.toLowerCase();
 
-        if (appliedFilter.column && appliedFilter.value) {
-          if (appliedFilter.column === "categoria") {
-            return i.categoria === appliedFilter.value;
-          }
-          if (appliedFilter.column === "proveedor") {
-            return i.proveedor === appliedFilter.value;
-          }
-          if (appliedFilter.column === "status") {
-            let statusLabel = "En Stock";
-            if (i.stock! <= i.stock_minimo) statusLabel = "Stock Agotado";
-            else if (i.stock! <= i.stock_alert) statusLabel = "Stock Bajo";
-            else if (!i.status) statusLabel = "Inactivo";
-            else if (i.stock! > i.stock_maximo) statusLabel = "Sobre Stock";
-            return (
-              statusLabel.toLowerCase() === appliedFilter.value.toLowerCase()
-            );
-          }
+      // Búsqueda por texto
+      const matchesText =
+        i.nombre.toLowerCase().includes(q) ||
+        (i.categoria ?? "").toLowerCase().includes(q) ||
+        (i.proveedor ?? "").toLowerCase().includes(q) ||
+        (i.cabys_code ?? "").includes(q) ||
+        `prod-${String(i.id).padStart(3, "0")}`.includes(q);
+
+      if (!matchesText) return false;
+
+      // Filtro aplicado (columna + valor)
+      if (appliedFilter.column && appliedFilter.value) {
+        if (appliedFilter.column === "categoria") {
+          return i.categoria === appliedFilter.value;
         }
-        return true;
-      }),
-    [items, searchQuery, appliedFilter]
-  );
+        if (appliedFilter.column === "proveedor") {
+          return i.proveedor === appliedFilter.value;
+        }
+        if (appliedFilter.column === "status") {
+          // Regla consistente: si está inactivo -> "Inactivo" SIEMPRE
+          let statusLabel: string;
+          const stock = i.stock ?? 0;
+          const min = i.stock_minimo ?? 0;
+          const alert = i.stock_alert ?? 0;
+          const max = i.stock_maximo ?? 100;
 
-  const indexOfLast = currentPage * rowsPerPage;
-  const indexOfFirst = indexOfLast - rowsPerPage;
-  const pagedItems = filteredItems.slice(indexOfFirst, indexOfLast);
-  const totalPagesCount = Math.max(
-    1,
-    Math.ceil(filteredItems.length / rowsPerPage)
-  );
+          if (!isActive(i.status)) {
+            statusLabel = "Inactivo";
+          } else if (stock <= min) {
+            statusLabel = "Stock Agotado";
+          } else if (stock <= alert) {
+            statusLabel = "Stock Bajo";
+          } else if (stock > max) {
+            statusLabel = "Sobre Stock";
+          } else {
+            statusLabel = "En Stock";
+          }
+          return statusLabel.toLowerCase() === appliedFilter.value.toLowerCase();
+        }
+      }
+      return true;
+    }),
+  [items, searchQuery, appliedFilter]
+);
+
+  const totalPagesCount = Math.max(1, Math.ceil(filteredItems.length / rowsPerPage));
+const safePage = Math.min(currentPage, totalPagesCount);
+const indexOfLast = safePage * rowsPerPage;
+const indexOfFirst = indexOfLast - rowsPerPage;
+const pagedItems = filteredItems.slice(indexOfFirst, indexOfLast);
 
   useEffect(() => {
     if (currentPage > totalPagesCount && totalPagesCount > 0)
@@ -340,21 +356,21 @@ export default function InventoryPage(): JSX.Element {
     else if (item.stock > item.stock_maximo) colorBar = "bg-blue-300";
 
     let statusLabel = "En Stock";
-    let statusColor = "bg-green-100 text-green-800";
-    if (item.stock <= item.stock_minimo) {
-      statusLabel = "Stock Agotado";
-      statusColor = "bg-red-100 text-red-800";
-    } else if (item.stock <= item.stock_alert) {
-      statusLabel = "Stock Bajo";
-      statusColor = "bg-yellow-100 text-yellow-800";
-    } else if (item.stock > item.stock_maximo) {
-      statusLabel = "Sobre Stock";
-      statusColor = "bg-blue-100 text-blue-800";
-    }
-    if (!item.status && statusLabel === "En Stock") {
-      statusLabel = "Inactivo";
-      statusColor = "bg-slate-100 text-slate-800";
-    }
+let statusColor = "bg-green-100 text-green-800";
+
+if (!isActive(item.status)) {
+  statusLabel = "Inactivo";
+  statusColor = "bg-slate-100 text-slate-800";
+} else if (item.stock <= item.stock_minimo) {
+  statusLabel = "Stock Agotado";
+  statusColor = "bg-red-100 text-red-800";
+} else if (item.stock <= item.stock_alert) {
+  statusLabel = "Stock Bajo";
+  statusColor = "bg-yellow-100 text-yellow-800";
+} else if (item.stock > item.stock_maximo) {
+  statusLabel = "Sobre Stock";
+  statusColor = "bg-blue-100 text-blue-800";
+}
 
     return (
       <tr key={item.id} className="border-t hover:bg-gray-50">
@@ -469,20 +485,19 @@ export default function InventoryPage(): JSX.Element {
                   {item.proveedor ?? "—"}
                 </td>
               );
-            case "status":
-              return (
-                <td
-                  key="status"
-                  style={cellStyle}
-                  className="px-4 py-3 text-sm text-center"
-                >
-                  <span
-                    className={`inline-block ${statusColor} text-xs px-2 py-1 rounded`}
-                  >
-                    {statusLabel}
-                  </span>
-                </td>
-              );
+  case "status":
+  return (
+    <td
+      key="status"
+      style={cellStyle}
+      className="px-4 py-3 text-sm text-center"
+    >
+      <StatusBadge
+        text={statusLabel}
+        type={!isActive(item.status) ? "inactive" : statusLabel}
+      />
+    </td>
+  );
             case "acciones":
               return (
                 <td
@@ -666,24 +681,6 @@ export default function InventoryPage(): JSX.Element {
         {/* --- FIN: CAMBIO DE ORDEN DE BOTONES --- */}
       </div>
 
-      {appliedFilter.column && appliedFilter.value && (
-        <div className="mb-4 text-sm text-gray-600">
-          Filtro activo:{" "}
-          <span className="font-semibold">
-            {ALL_COLUMNS.find((c) => c.key === appliedFilter.column)?.label}
-          </span>{" "}
-          = <span className="font-semibold">"{appliedFilter.value}"</span>
-          <Button
-            variant="light"
-            size="sm"
-            onPress={handleClearFiltersWithoutClose}
-            className="ml-2 !p-0 text-sky-600 hover:text-sky-800 text-xs"
-          >
-            (Limpiar)
-          </Button>
-        </div>
-      )}
-
       <div className="bg-white shadow rounded-lg border overflow-hidden">
         <div className="overflow-x-auto">
           {loading ? (
@@ -812,7 +809,7 @@ export default function InventoryPage(): JSX.Element {
               disabled
               className="px-3 py-1 text-sm bg-blue-500 text-white rounded"
             >
-              {currentPage}
+              {safePage}
             </button>
             <button
               onClick={handleNextPage}

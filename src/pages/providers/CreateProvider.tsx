@@ -1,5 +1,3 @@
-// src/pages/providers/CreateProvider.tsx
-
 import React, { useState, useRef, useEffect } from "react";
 import type { Proveedor } from "./types";
 
@@ -52,7 +50,8 @@ export default function CrearProveedor({
       setErrorMsg("Por favor ingresa un correo válido.");
       return;
     }
-    // Entregamos el nuevo proveedor sin 'id' ni 'estado' (porque el padre lo forzará)
+
+    // 1. Se entregan los datos del nuevo proveedor al componente padre.
     onCreated({
       nombre: nombre.trim(),
       contacto: contacto.trim(),
@@ -60,6 +59,9 @@ export default function CrearProveedor({
       telefono: telefono.trim(),
       categoria: categoria.trim(),
     });
+
+    // 2. Se cierra el modal después de crear exitosamente.
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -135,13 +137,20 @@ export default function CrearProveedor({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Categoría
             </label>
-            <input
-              type="text"
+            <select
               value={categoria}
               onChange={(e) => setCategoria(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-              placeholder="ej. Electrónica"
-            />
+              required
+            >
+              <option value="">Selecciona una categoría...</option>
+              <option value="Tecnología">Tecnología</option>
+              <option value="Alimentos">Alimentos</option>
+              <option value="Servicios">Servicios</option>
+              <option value="Materiales">Materiales</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Otros">Otros</option>
+            </select>
           </div>
 
           {/* Botones */}

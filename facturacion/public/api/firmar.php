@@ -128,7 +128,7 @@ function construirXMLFactura($factura, $emisor, $receptor, $detalles, $clave) {
     // Por ahora, XML básico de ejemplo:
     
     $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-    $xml .= '<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.3/facturaElectronica">';
+    $xml .= '<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.4/facturaElectronica">';
     $xml .= "<Clave>$clave</Clave>";
     $xml .= "<CodigoActividad>722001</CodigoActividad>"; // Ajustar según tu actividad
     $xml .= "<NumeroConsecutivo>{$factura['consecutivo']}</NumeroConsecutivo>";

@@ -38,7 +38,7 @@ interface DefinicionColumna {
 }
 
 export default function ProveedoresPage() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [consulta, setConsulta] = useState<string>("");
@@ -81,6 +81,7 @@ export default function ProveedoresPage() {
         contacto: fila.contacto,
         correo: fila.correo,
         telefono: String(fila.telefono),
+        categoria: fila.categoria,
         estado: fila.estado,
       }));
       setProveedores(parseados);
@@ -143,10 +144,19 @@ export default function ProveedoresPage() {
   };
 
   const filteredList = proveedoresFiltrados;
-  const totalPages = Math.max(1, Math.ceil(filteredList.length / rowsPerPage));
-  const indexOfLast = currentPage * rowsPerPage;
-  const indexOfFirst = indexOfLast - rowsPerPage;
-  const pagedProveedores = filteredList.slice(indexOfFirst, indexOfLast);
+const totalPages = Math.max(1, Math.ceil(filteredList.length / rowsPerPage));
+const safePage = Math.min(currentPage, totalPages);
+const start = (safePage - 1) * rowsPerPage;
+const end = start + rowsPerPage;
+const pagedProveedores = filteredList.slice(start, end);
+
+useEffect(() => {
+   if (currentPage > totalPages && totalPages > 0) {
+     setCurrentPage(totalPages);
+   } else if (filteredList.length === 0 && currentPage !== 1) {
+     setCurrentPage(1);
+   }
+ }, [currentPage, totalPages, filteredList.length]);
 
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setRowsPerPage(parseInt(e.target.value, 10));
@@ -383,30 +393,32 @@ export default function ProveedoresPage() {
           </div>
           <div className="flex items-center space-x-2 text-sm">
             <button
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-              className={`px-3 py-1 rounded ${
-                currentPage === 1
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-              }`}
-            >
-              &lt;
-            </button>
-            <button disabled className="px-3 py-1 text-sm bg-blue-500 text-white rounded">
-              {currentPage}
-            </button>
-            <button
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className={`px-3 py-1 rounded ${
-                currentPage === totalPages || totalPages === 0
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-              }`}
-            >
-              &gt;
-            </button>
+             onClick={handlePrevPage}
+  disabled={safePage === 1}
+  className={`px-3 py-1 rounded ${
+    safePage === 1
+      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+  }`}
+>
+  &lt;
+</button>
+
+<button disabled className="px-3 py-1 text-sm bg-blue-500 text-white rounded">
+  {safePage}
+</button>
+
+<button
+  onClick={handleNextPage}
+  disabled={safePage === totalPages || totalPages === 0}
+  className={`px-3 py-1 rounded ${
+    safePage === totalPages || totalPages === 0
+      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+  }`}
+>
+  &gt;
+</button>
           </div>
         </div>
       </div>
@@ -420,27 +432,26 @@ export default function ProveedoresPage() {
                 Filtrar Proveedores
               </h2>
               <button
-   onClick={() => setFilterOpen(false)}
-   aria-label="Cerrar filtro"
-   className="absolute top-2 right-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1 flex items-center justify-center transition-colors"
-   style={{ width: 24, height: 24 }}
- >
-   <svg
-     xmlns="http://www.w3.org/2000/svg"
-     width="12"
-     height="12"
-     viewBox="0 0 24 24"
-     fill="none"
-     stroke="currentColor"
-     strokeWidth="3"
-     strokeLinecap="round"
-     strokeLinejoin="round"
-   >
-     <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-   </svg>
- </button>
-
+                onClick={() => setFilterOpen(false)}
+                aria-label="Cerrar filtro"
+                className="absolute top-2 right-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1 flex items-center justify-center transition-colors"
+                style={{ width: 24, height: 24 }}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             <div className="p-4">
               <label className="block text-sm mb-1">Estado</label>
@@ -461,12 +472,12 @@ export default function ProveedoresPage() {
             </div>
             <div className="flex justify-end p-4 border-t space-x-2">
               <Button
-                variant="bordered"
-                onPress={() => setFilterStatus("todos")}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 text-sm"
-              >
-                Limpiar
-              </Button>
+  variant="bordered"
+  onPress={() => { setFilterStatus("todos"); setCurrentPage(1); }}
+  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 text-sm"
+>
+  Limpiar
+</Button>
               <Button color="primary" onPress={() => setFilterOpen(false)}>
                 Aplicar
               </Button>
@@ -484,6 +495,7 @@ export default function ProveedoresPage() {
             .insert({ ...nuevo, estado: true })
             .select("*")
             .single();
+
           if (error) {
             console.error("Error creando proveedor:", error.message);
           } else {
@@ -493,6 +505,7 @@ export default function ProveedoresPage() {
               contacto: (data as any).contacto,
               correo: (data as any).correo,
               telefono: String((data as any).telefono),
+              categoria: (data as any).categoria,
               estado: (data as any).estado,
             };
             setProveedores((ant) => [creado, ...ant]);

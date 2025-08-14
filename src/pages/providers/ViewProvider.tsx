@@ -6,7 +6,6 @@ import {
   User,
   Mail,
   Phone,
-  Shapes,
   Power,
 } from "lucide-react";
 
@@ -43,7 +42,6 @@ export default function VerProveedor({
             <h2 className="text-xl font-bold text-slate-800">Detalles del Proveedor</h2>
             <p className="text-sm text-slate-500">{proveedor.nombre}</p>
           </div>
-          {/* Botón de cierre eliminado ya que se cuenta con botón en el pie */}
         </div>
 
         {/* Contenido con Detalles */}
@@ -62,10 +60,6 @@ export default function VerProveedor({
 
           <DetailRow icon={<Phone size={16} />} label="Teléfono">
             {proveedor.telefono}
-          </DetailRow>
-
-          <DetailRow icon={<Shapes size={16} />} label="Categoría">
-            {proveedor.categoria}
           </DetailRow>
 
           <DetailRow icon={<Power size={16} />} label="Estado">

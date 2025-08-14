@@ -1,4 +1,3 @@
-// RUTA: src/components/Layout/Sidebar.tsx (VERSIÓN DE DEPURACIÓN Y CORRECCIÓN)
 
 import React from "react";
 import { NavLink } from "react-router-dom";
@@ -15,8 +14,6 @@ interface SidebarProps {
 function Sidebar({ collapsed, toggleCollapse, handleLogout, isMobileView }: SidebarProps): JSX.Element {
   const { role } = useAuth();
 
-  // --- PASO DE DEPURACIÓN: Verificamos el rol en la consola ---
-  // Abre la consola del navegador (F12) y busca este mensaje.
   console.log("El componente Sidebar se está renderizando con el rol:", role);
 
   const mainSidebarItems = [
@@ -29,9 +26,7 @@ function Sidebar({ collapsed, toggleCollapse, handleLogout, isMobileView }: Side
     { to: "/reports",     label: "Reportes",    icon: "lucide:bar-chart-3" },
   ];
 
-  // --- CORRECCIÓN DEFINITIVA ---
-  // Añadimos el item de Auditoría a la lista solo si el rol es 'admin'.
-  // Esta es la forma correcta y robusta de hacerlo.
+
   if (role === 'admin') {
     mainSidebarItems.push({
       to: "/audit-log",

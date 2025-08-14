@@ -18,7 +18,7 @@ export default function EditarProveedor({
   const [contacto, setContacto] = useState(proveedor.contacto);
   const [correo, setCorreo] = useState(proveedor.correo);
   const [telefono, setTelefono] = useState(proveedor.telefono);
-  const [categoria, setCategoria] = useState(proveedor.categoria);
+  // const [categoria, setCategoria] = useState(proveedor.categoria); // Eliminado
   const [estado, setEstado] = useState(proveedor.estado);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -30,7 +30,7 @@ export default function EditarProveedor({
       setContacto(proveedor.contacto);
       setCorreo(proveedor.correo);
       setTelefono(proveedor.telefono);
-      setCategoria(proveedor.categoria);
+      // setCategoria(proveedor.categoria); // Eliminado
       setEstado(proveedor.estado);
       setErrorMsg(null);
       setTimeout(() => nombreRef.current?.focus(), 0);
@@ -44,8 +44,8 @@ export default function EditarProveedor({
       !nombre.trim() ||
       !contacto.trim() ||
       !correo.trim() ||
-      !telefono.trim() ||
-      !categoria.trim()
+      !telefono.trim()
+      // !categoria.trim() // Eliminado
     ) {
       setErrorMsg("Todos los campos son obligatorios.");
       return;
@@ -61,9 +61,10 @@ export default function EditarProveedor({
       contacto: contacto.trim(),
       correo: correo.trim(),
       telefono: telefono.trim(),
-      categoria: categoria.trim(),
+      // categoria: categoria.trim(), // Eliminado
       estado,
     });
+    onClose(); // Agregado para cerrar el modal al guardar
   };
 
   if (!isOpen) return null;
@@ -131,8 +132,8 @@ export default function EditarProveedor({
             />
           </div>
 
-          {/* Categoría */}
-          <div>
+          {/* Categoría - ELIMINADO */}
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Categoría
             </label>
@@ -142,7 +143,7 @@ export default function EditarProveedor({
               onChange={(e) => setCategoria(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
             />
-          </div>
+          </div> */}
 
           {/* Estado (Activo / Inactivo) */}
           <div className="flex items-center space-x-2">

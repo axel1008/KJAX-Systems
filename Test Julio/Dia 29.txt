@@ -1,0 +1,127 @@
+    Comienzo del testeo 29/07/25
+
+                                                            Pagina Login
+
+1-Funcionando correctamente
+
+                                                        Pagina de dashboard:
+
+1-La pagina da señales de que todas las funciones estan correctas leyendo los datos de 
+cada pagina y mostrando la informacion relevante
+
+                                                          Pagina clientes
+
+1-Apartado visual correcto conforme al diseño de la pagina
+
+2-Barra de busqueda de cliente funcionando
+
+3-Boton de filtado (Ativos-inactivos funcionando)
+
+4-Generacion de cliente correcta y notificacion correcta
+
+Hallazgos la tabla no se esta refrescando en el momento que se crea el nuevo cliente 
+teniendo que refrescar la pagina para que salga.
+No tiene el apartado de distrito al crear el cliente
+
+5-Boton de detalles funcionando correctamente mostrando datos correctos
+Hallazgo boton de cerrar al final teniando que bajar hasta el final para poder cerrar el
+ modal sugerencia ponerlo en la parte superior una X
+
+6- Edicion de cliente y notificacion correcta.
+Hallazgo boton de cerrar al final teniando que bajar hasta el final para poder cerrar el
+ modal sugerencia ponerlo en la parte superior una X
+
+7-Descuento generado correctamente
+
+8-Edicion y notificacion de descuento correcto
+
+9-Eliminacion de descuentos correcta
+
+10-Boton de eliminar desactiva el cliente
+Hallazgo para hacerlo mas congruente debe ser desactivar en vez de un boton de eliminar
+
+                                                          Pagina Inventario
+
+1-Apartado visual correcto conforme al diseño de la pagina y tarjetas de stock funcionando correctamente
+Hallazgo se muestra el precio de compra no deberia de verlo siendo Usuario normal no administrativo
+
+2-Barra de busqueda de cliente funcionando
+
+3-Creacion de producto correcta 
+Hallazgo talvez un poco confusa para una persona que no sepa mucho de tecnologia 
+
+4-Detalles de producto con errores el modal supera el limite de la pagina y no permita realizar scroll impidiendo cerrar el modal
+Hallazgo aca tambien muestra el precio de compra del producto
+
+5-Edicion de producto correcta, no muestra notificacion
+
+6-Boton de filtrado correcto (Categoria, proveedor, stock)
+
+7-Eliminar producto correcto pero no muestra notificacion
+
+                                                        Pagina Facturacion
+
+Sin revicion aun terminando desarrollo
+
+                                                        Pagina Proveedores
+
+1-Apartado visual correcto conforme al diseño de la pagina
+
+2-Barra de busqueda de proveedores funcionando
+
+3-Boton de filtrado correcto (activo e inactivo)
+
+4-Eliminacion correcta de proveedor
+Hallazgo no se refresca la pagina al eliminarlo y  no se genera la notificacion
+
+                                                    Pagina cuentas por cobrar
+
+1-Apartado visual correcto conforme al diseño de la pagina
+
+2-Barra de busqueda de proveedores funcionando
+
+3-Boton de filtrado correcto (estado, proveedor, rango de fecha)
+
+4-Creacion de factura correcta y generando notificacion
+Hallazgo falta implementar la carga de archivos y reparar el apartado de bonificaciones
+
+5-Boton de detalles funcionado correctamente
+Hallazgo en la cantidad de dias de pago sale como tipo de factura hay que retocar ese 
+detalle para que concuerde ya sea agregar a la cantidad de dias al lado la palabra credito
+
+6-Pagos de cuentas por pagar trabajando correctamente y dando notificacion
+
+7-Historial de pago funcionando correctamente
+
+8-Anulacion de factura funcionando correctamente
+
+                                                        Pagina de reportes
+
+1-Apartado visual correcto conforme al diseño de la pagina
+
+2-Periodo de reporte funcionando correctamente
+
+3-Filtado por tipo de facturacion sin funcionar aun
+
+4-Reportes por IVA sin funcionar aun
+
+5-Generacion de reporte de ventas formato PDF y EXCEL funcionando correctamente
+
+6-Generacion de reporte de deuda a proveedores formato PDF y EXCEL funcionando correctamente
+
+7-Generacion de reporte de inventario formato PDF y EXCEL funcionando correctamente
+
+8-Generacion de reporte de descuentos formato PDF y EXCEL funcionando correctamente
+
+                                                        Pagina Auditoria
+
+1-Apartado visual correcto conforme al diseño de la pagina
+
+2-Historial funcionando correctamente
+Hallazgos pagina cuentas por pagar, facturacion y reportes no generan mivimientos al historial de auditoria
+
+                                            Topbar
+
+1-Barra de busqueda faltante de pulir aun
+
+    Fin de testeo 29/07/25

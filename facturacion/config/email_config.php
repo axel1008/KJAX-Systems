@@ -4,10 +4,10 @@ return [
     // 📧 CONFIGURACIÓN SMTP
     // ========================================
     'smtp' => [
-        'host' => 'sandbox.smtp.mailtrap.io',
-        'username' => 'ad3cda0029d361 ',
-        'password' => 'd59414e192fbb4',
-        'port' => 2525,
+        'host' => 'smtp.gmail.com',
+        'username' => 'axelrojas176@gmail.com',
+        'password' => 'xqew ihqs lrrc zyvr',
+        'port' => 587,
         'encryption' => 'tls'
     ],
     
@@ -16,7 +16,7 @@ return [
     // ========================================
     'from' => [
         'email' => 'axelrojas176@gmail.com',
-        'name' => 'Sistema KJAX - Facturación'
+        'name' => 'KJAX - Facturación'
     ],
     
     // ========================================
@@ -31,12 +31,12 @@ return [
     // 🏢 DATOS DE LA EMPRESA
     // ========================================
     'empresa' => [
-        'nombre' => 'KJAX Technologies',
-        'telefono' => '+506 2234-5678',
-        'email' => 'contacto@kjax.com',
-        'whatsapp' => '+50612345678',
-        'direccion' => 'San José, Costa Rica',
-        'sitio_web' => 'www.kjax.com'
+        'nombre' => 'KJAX Systems',
+        'telefono' => '+506 62691782',
+        'email' => 'cotizacion@kjaxsystems.net',
+        'whatsapp' => '+5062691782',
+        'direccion' => 'Alajuela, Costa Rica',
+        'sitio_web' => 'www.kjax Systems.net'
     ],
     
     // ========================================

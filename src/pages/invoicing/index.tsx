@@ -19,7 +19,7 @@ import { Search, Plus, Download, Filter, Eye, Edit, FileX2, Zap, FileText, Alert
 
 type ColumnKey =
   | "id" | "cliente_nombre_display" | "fecha_emision" | "dias_vencido"
-  | "tipo_factura" | "clave_hacienda" | "total_formatted" 
+  | "tipo_factura" |  "total_formatted" 
   | "saldo_pendiente_formatted" | "estado_badge" | "acciones";
 
 interface ColumnDef {
@@ -58,7 +58,7 @@ export const InvoicingPage: React.FC = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [columnOrder, setColumnOrder] = useState<ColumnKey[]>([
         "id", "cliente_nombre_display", "fecha_emision", "dias_vencido", 
-        "tipo_factura", "clave_hacienda", "total_formatted", 
+        "tipo_factura",  "total_formatted", 
         "saldo_pendiente_formatted", "estado_badge", "acciones",
     ]);
     const [draggedKey, setDraggedKey] = useState<ColumnKey | null>(null);
@@ -69,7 +69,6 @@ export const InvoicingPage: React.FC = () => {
         fecha_emision: { key: "fecha_emision", label: "F. EMISIÓN", width: "110px" },
         dias_vencido: { key: "dias_vencido", label: "DÍAS VENC.", width: "100px" },
         tipo_factura: { key: "tipo_factura", label: "TIPO", width: "90px" },
-        clave_hacienda: { key: "clave_hacienda", label: "CLAVE", width: "130px" },
         total_formatted: { key: "total_formatted", label: "TOTAL", width: "120px" },
         saldo_pendiente_formatted: { key: "saldo_pendiente_formatted", label: "SALDO PEND.", width: "120px" },
         estado_badge: { key: "estado_badge", label: "ESTADO", width: "100px" },
@@ -696,18 +695,7 @@ export const InvoicingPage: React.FC = () => {
 
                 {/* Botones de acción */}
                 <div className="flex space-x-2">
-                    <Button
-                        onPress={probarConfiguracionEmail}
-                        variant="bordered"
-                        startContent={<Mail className="h-4 w-4" />}
-                        className="hover:bg-gray-50 border border-gray-300"
-                        style={{
-                           height: "38px",
-                           backgroundColor: "white",
-                        }}
-                    >
-                        Test Email
-                    </Button>
+                   
                     <Button
                         onPress={() => toast.success("Exportar próximamente")}
                         variant="bordered"

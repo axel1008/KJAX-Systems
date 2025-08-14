@@ -8,6 +8,7 @@ import { supabase } from '../../supabaseClient';
 import WelcomeMessage from "../ui/WelcomeMessage";
 import { useAuth } from '../../Context/AuthContext';
 import { GlobalSearchBar } from './GlobalSearchBar';
+import AppFooter from "../ui/AppFooter";
 
 const capitalizeFirstLetter = (string: string) => {
   if (!string) return '';
@@ -44,7 +45,7 @@ function Sidebar({ collapsed, toggleCollapse, handleLogout, isMobileView, sideba
     <aside className={`${width} ${transform} bg-white border-r border-slate-200 shadow-lg fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out`}>
       <div className={`flex items-center border-b border-slate-200 px-4 h-16 ${collapsed && !isMobileView ? 'justify-center' : 'justify-between'}`}>
         {(!collapsed || (isMobileView && !collapsed)) && (
-          <span className="text-xl font-bold text-slate-800 whitespace-nowrap">Panadería</span>
+          <span className="text-xl font-bold text-slate-800 whitespace-nowrap">Distribudora Chan</span>
         )}
         <button
           onClick={toggleCollapse}
@@ -198,7 +199,7 @@ export default function Layout(): JSX.Element {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-100">
+    <div className="flex flex-col min-h-screen bg-slate-100">
       <WelcomeMessage />
 
       <Sidebar
@@ -209,19 +210,18 @@ export default function Layout(): JSX.Element {
         sidebarItems={mainSidebarItems}
       />
 
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
         isDesktopMdView ? (isSidebarCollapsedDesktop ? 'md:ml-20' : 'md:ml-64') : 'ml-0'
       }`}>
         <Topbar handleLogout={handleLogout} toggleMobileSidebar={toggleMainSidebar} />
         <Breadcrumbs />
 
-        <main className="flex-1 overflow-auto p-4 pt-0 flex flex-col">
-          <Outlet />
-          {/* Footer only at page end, without container bar */}
-          <footer className="mt-8 text-center text-xs text-slate-600 font-bold">
-            Derechos Reservados por KJAX System 2025
-          </footer>
-        </main>
+        <div className="flex-1 flex flex-col">
+         <div className="flex-1 p-4 pt-0 overflow-y-auto">
+  <Outlet />
+</div>
+<AppFooter />
+        </div>
       </div>
     </div>
   );
