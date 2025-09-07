@@ -1,0 +1,58 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+// CORRECCIÓN: Import correcto de los controllers
+use App\Http\Controllers\Api\FacturaTicaController;
+use App\Http\Controllers\ComercialController; // SIN Api\
+
+// Rutas para FacturaTICA (facturas electrónicas)
+Route::prefix('facturatica')->group(function () {
+    // Verificación de conexión
+    Route::get('health-check', [FacturaTicaController::class, 'healthCheck']);
+    
+    // Envío de facturas
+    Route::post('send-invoice', [FacturaTicaController::class, 'sendInvoice']);
+    
+    // Consultas y gestión
+    Route::post('consultar-estado', [FacturaTicaController::class, 'consultarEstado']);
+    Route::post('anular-factura', [FacturaTicaController::class, 'anularFactura']);
+    Route::post('reenviar-factura', [FacturaTicaController::class, 'reenviarFactura']);
+    
+    // Documentos y descargas
+    Route::post('descargar-documentos', [FacturaTicaController::class, 'descargarDocumentos']);
+    Route::post('generar-pdf', [FacturaTicaController::class, 'generarPDF']);
+    
+    // Email
+    Route::post('enviar-email', [FacturaTicaController::class, 'enviarEmail']);
+    
+    // Notas de crédito
+    Route::post('crear-nota-credito', [FacturaTicaController::class, 'crearNotaCredito']);
+    
+    // Listados y consultas
+    Route::post('listar-facturas', [FacturaTicaController::class, 'listarFacturas']);
+});
+
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+
+// Rutas para facturas comerciales (normales)
+Route::prefix('comercial')->group(function () {
+    // Generación de PDFs
+    Route::post('/generar-pdf', [ComercialController::class, 'generarPdf']);
+    Route::post('/descargar-pdf', [ComercialController::class, 'descargarPdf']);
+    
+    // Gestión de documentos
+    Route::post('/crear-nota-credito', [ComercialController::class, 'crearNotaCredito']);
+    Route::post('/anular-factura', [ComercialController::class, 'anularFactura']);
+    Route::post('/reenviar-documento', [ComercialController::class, 'reenviarDocumento']);
+    
+    // Email (implementaremos después)
+    Route::post('/enviar-email', [ComercialController::class, 'enviarEmail']);
+    
+    // Gestión de archivos
+    Route::get('/listar-pdfs', [ComercialController::class, 'listarPdfs']);
+    Route::delete('/eliminar-pdf', [ComercialController::class, 'eliminarPdf']);
+});
